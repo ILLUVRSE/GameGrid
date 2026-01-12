@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  USER
+}
+
+model User {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String
+  name           String?
+  role           Role         @default(USER)
+  profile        Profile?
+  watchProgress  WatchProgress[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Profile {
+  id        String @id @default(uuid())
+  user      User   @relation(fields: [userId], references: [id])
+  userId    String @unique
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  kidsMode    Boolean @default(false)
+}
+
+model Show {
+  id        String    @id @default(uuid())
+  slug      String    @unique
+  title     String
+  synopsis  String?
+  logline   String?
+  seoDescription String?
+  heroImageUrl String?
+  posterUrl   String?
+  genres    String[]  @default([])
+  tags      String[]  @default([])
+  maturityRating String?
+  contentWarnings String[] @default([])
+  kidsSafe  Boolean   @default(false)
+  kidsSafeReason String?
+  aiMetadataUpdatedAt DateTime?
+  embeddingVector Unsupported("vector")?
+  seasons   Season[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Season {
+  id        String   @id @default(uuid())
+  number    Int
+  title     String?
+  synopsis  String?
+  show      Show     @relation(fields: [showId], references: [id])
+  showId    String
+  episodes  Episode[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([showId, number])
+}
+
+model Episode {
+  id             String       @id @default(uuid())
+  number         Int
+  title          String
+  synopsis       String?
+  logline        String?
+  seoDescription String?
+  tags           String[]     @default([])
+  maturityRating String?
+  contentWarnings String[]    @default([])
+  kidsSafe       Boolean      @default(false)
+  kidsSafeReason String?
+  aiMetadataUpdatedAt DateTime?
+  runtimeSec     Int?
+  embeddingVector Unsupported("vector")?
+  season         Season       @relation(fields: [seasonId], references: [id])
+  seasonId       String
+  videoAsset     VideoAsset?  @relation(fields: [videoAssetId], references: [id])
+  videoAssetId   String?      @unique
+  watchProgress  WatchProgress[]
+  stationQueueItems StationQueueItem[] @relation("EpisodeQueue")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([seasonId, number])
+}
+
+model VideoAsset {
+  id            String   @id @default(uuid())
+  sourceUrl     String @default("")
+  hlsManifestUrl String?
+  durationSec   Int?
+  format        String?
+  size          Int?     // size in bytes
+  subtitlesUrl  String?
+  episode       Episode?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model WatchProgress {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  profileId  String?
+  episode    Episode  @relation(fields: [episodeId], references: [id])
+  episodeId  String
+  position   Int      // viewed seconds
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@unique([userId, episodeId])
+}
+
+model Station {
+  id            String        @id @default(uuid())
+  slug          String        @unique
+  name          String
+  description   String?
+  rulesJson     Json?
+  isAiGenerated Boolean       @default(true)
+  items         StationQueueItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model StationQueueItem {
+  id        String   @id @default(uuid())
+  station   Station  @relation(fields: [stationId], references: [id])
+  stationId String
+  episode   Episode  @relation("EpisodeQueue", fields: [episodeId], references: [id])
+  episodeId String
+  position  Int
+  startsAt  DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([stationId, position])
+}
+
+model AiUsageLog {
+  id         String   @id @default(uuid())
+  route      String
+  tokens     Int?
+  costEstimate Float?
+  createdAt  DateTime @default(now())
+}
+
+model TranscodeJob {
+  id            String   @id @default(uuid())
+  assetId       String
+  status        String
+  outputPath    String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

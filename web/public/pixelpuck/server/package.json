@@ -1,0 +1,13 @@
+{
+  "name": "pixelpuck-hockey94-server",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "PixelPuck NHL '94 mode WebSocket server",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

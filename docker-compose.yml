@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  app:
+    image: your-app-image:latest
+    environment:
+      - APP_ENV=production
+      - APP_SECRET=your_secret_key
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/yourappdb
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_DB=yourappdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

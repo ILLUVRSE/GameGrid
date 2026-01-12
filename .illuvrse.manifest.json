@@ -1,0 +1,15 @@
+{
+  "generated": [
+    "web/src/app/search/page.tsx",
+    "web/src/app/profile/page.tsx",
+    "web/src/components/Header.tsx",
+    "web/src/components/Footer.tsx",
+    "web/src/app/login/page.tsx",
+    "web/src/app/register/page.tsx",
+    "web/src/app/admin/page.tsx",
+    "web/src/app/admin/shows/page.tsx",
+    "api/admin.ts",
+    "api/search.ts",
+    "prisma/seed.ts"
+  ]
+}

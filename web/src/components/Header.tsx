@@ -1,0 +1,55 @@
+import Link from "next/link";
+
+const navItems = [
+  { label: "Streaming", href: "/home" },
+  { label: "GameGrid", href: "/gamegrid" },
+  { label: "Search", href: "/search" },
+  { label: "Narrative", href: "/narrative" },
+  { label: "Admin", href: "/admin" },
+  { label: "Profile", href: "/profile" },
+];
+
+export default function Header() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-illuvrse-stroke bg-illuvrse-night/90 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-3 text-illuvrse-snow">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-illuvrse-electric/20 text-lg font-semibold text-illuvrse-electric">
+            I
+          </span>
+          <div className="leading-none">
+            <p className="text-lg font-semibold tracking-[0.2em] text-illuvrse-snow">
+              ILLUVRSE
+            </p>
+            <p className="text-xs uppercase text-illuvrse-muted">Stream the metaverse</p>
+          </div>
+        </Link>
+        <nav className="hidden items-center gap-6 text-sm font-medium text-illuvrse-muted md:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="transition hover:text-illuvrse-snow"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="rounded-full border border-illuvrse-stroke px-4 py-2 text-sm text-illuvrse-snow transition hover:border-illuvrse-electric hover:text-illuvrse-electric"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-full bg-illuvrse-ember px-4 py-2 text-sm font-semibold text-illuvrse-night transition hover:bg-illuvrse-glow"
+          >
+            Join now
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
