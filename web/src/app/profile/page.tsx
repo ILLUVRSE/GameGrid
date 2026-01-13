@@ -4,7 +4,8 @@ import { verifySessionToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
 
 export default async function ProfilePage() {
-  const token = cookies().get("illuvrse_auth")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("illuvrse_auth")?.value;
   const session = token ? verifySessionToken(token) : null;
 
   if (!session) {

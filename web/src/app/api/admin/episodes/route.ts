@@ -47,11 +47,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const number = data.number as number;
   try {
     const episode = await prisma.episode.create({
       data: {
         seasonId: data.seasonId,
-        number: data.number,
+        number,
         title: data.title,
         synopsis: typeof data.synopsis === "string" ? data.synopsis : null,
         runtimeSec: typeof data.runtimeSec === "number" ? data.runtimeSec : null,

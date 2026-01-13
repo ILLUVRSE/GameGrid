@@ -55,7 +55,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const showItems = (shows: typeof showsWithStats) =>
+  const showItems = <
+    T extends {
+      id: string;
+      title: string;
+      synopsis: string | null;
+      slug: string;
+      posterUrl: string | null;
+    },
+  >(
+    shows: T[],
+  ) =>
     shows.map((show) => ({
       type: "show",
       id: show.id,

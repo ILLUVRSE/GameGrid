@@ -54,7 +54,7 @@ export async function PATCH(
   }
 
   const updates: Prisma.VideoAssetUpdateInput = {};
-  if (typeof data.sourceUrl === "string" || data.sourceUrl === null) {
+  if (typeof data.sourceUrl === "string") {
     updates.sourceUrl = data.sourceUrl;
   }
   if (typeof data.hlsManifestUrl === "string" || data.hlsManifestUrl === null) {

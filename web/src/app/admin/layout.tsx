@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { verifySessionToken } from "@/lib/auth/jwt";
 import type { ReactNode } from "react";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const token = cookies().get("illuvrse_auth")?.value;
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("illuvrse_auth")?.value;
   const session = token ? verifySessionToken(token) : null;
 
   if (!session) {

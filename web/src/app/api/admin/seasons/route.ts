@@ -41,11 +41,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const number = data.number as number;
   try {
     const season = await prisma.season.create({
       data: {
         showId: data.showId,
-        number: data.number,
+        number,
         title: typeof data.title === "string" ? data.title : null,
         synopsis: typeof data.synopsis === "string" ? data.synopsis : null,
       },
