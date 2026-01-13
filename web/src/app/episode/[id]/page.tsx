@@ -1,6 +1,8 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import WatchlistButton from "@/components/WatchlistButton";
 
 export default async function EpisodePage({
   params,
@@ -20,6 +22,21 @@ export default async function EpisodePage({
     notFound();
   }
 
+  const formatRuntime = (seconds: number | null) => {
+    if (!seconds || Number.isNaN(seconds)) return "TBD";
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    return `${hours}h ${remaining}m`;
+  };
+
+  const runtimeSec = episode.runtimeSec ?? episode.videoAsset?.durationSec ?? null;
+  const releaseYear = episode.createdAt.getFullYear();
+  const runtimeLabel = formatRuntime(runtimeSec);
+  const tags = episode.tags.filter((tag) => tag.trim().length > 0);
+  const warnings = episode.contentWarnings.filter((warning) => warning.trim().length > 0);
+
   return (
     <main className="min-h-screen bg-illuvrse-night px-6 py-16 text-illuvrse-snow">
       <div className="mx-auto w-full max-w-4xl">
@@ -30,6 +47,17 @@ export default async function EpisodePage({
           {episode.season.show.title} · Season {episode.season.number}
         </Link>
         <h1 className="mt-3 text-3xl font-semibold">{episode.title}</h1>
+        <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {episode.maturityRating || episode.season.show.maturityRating || "NR"}
+          </span>
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {releaseYear}
+          </span>
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {formatRuntime(runtimeSec)}
+          </span>
+        </div>
         <p className="mt-3 text-sm text-illuvrse-muted">
           {episode.synopsis || "No synopsis yet."}
         </p>
@@ -46,7 +74,43 @@ export default async function EpisodePage({
           >
             Back to season
           </Link>
+          <WatchlistButton episodeId={episode.id} />
         </div>
+        <section className="mt-10 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+              Runtime
+            </p>
+            <p className="mt-2 text-lg font-semibold">{runtimeLabel}</p>
+            <p className="mt-2 text-sm text-illuvrse-muted">
+              Rating: {episode.maturityRating || episode.season.show.maturityRating || "NR"}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+              Production notes
+            </p>
+            <p className="mt-2 text-sm text-illuvrse-muted">
+              {episode.logline ||
+                episode.seoDescription ||
+                "Production details coming soon."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-illuvrse-muted">Cast</p>
+            <p className="mt-2 text-sm text-illuvrse-muted">
+              {tags.length > 0 ? tags.join(" · ") : "Cast details pending."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+              Content warnings
+            </p>
+            <p className="mt-2 text-sm text-illuvrse-muted">
+              {warnings.length > 0 ? warnings.join(" · ") : "No warnings listed."}
+            </p>
+          </div>
+        </section>
         <div className="mt-8 rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5 text-sm text-illuvrse-muted">
           {episode.videoAsset?.hlsManifestUrl
             ? `HLS manifest ready at ${episode.videoAsset.hlsManifestUrl}`
@@ -55,4 +119,40 @@ export default async function EpisodePage({
       </div>
     </main>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const episode = await prisma.episode.findUnique({
+    where: { id },
+    include: { season: { include: { show: true } } },
+  });
+
+  if (!episode) {
+    return {
+      title: "Episode not found | ILLUVRSE",
+      description: "This episode is not available.",
+    };
+  }
+
+  const title = `${episode.title} | ${episode.season.show.title} | ILLUVRSE`;
+  const description =
+    episode.seoDescription ||
+    episode.synopsis ||
+    episode.season.show.synopsis ||
+    "Episode details.";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: episode.season.show.posterUrl ? [{ url: episode.season.show.posterUrl }] : [],
+    },
+  };
 }

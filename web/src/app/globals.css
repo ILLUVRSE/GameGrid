@@ -32,6 +32,15 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--illuvrse-electric);
+  outline-offset: 2px;
+}
+
 .illuvrse-grid {
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0);
   background-size: 28px 28px;

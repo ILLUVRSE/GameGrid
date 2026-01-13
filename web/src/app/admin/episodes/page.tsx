@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Season = { id: string; number: number; show: { title: string } };
 type Episode = {
@@ -77,6 +78,16 @@ export default function AdminEpisodesPage() {
       <h1 className="text-2xl font-bold mb-4">Admin Episodes</h1>
       {error && <div className="mb-4 text-red-600">{error}</div>}
 
+      {seasons.length === 0 && (
+        <div className="mb-6 rounded border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+          Add a season before creating episodes.{" "}
+          <Link className="text-blue-600 underline" href="/admin/seasons">
+            Create a season
+          </Link>
+          .
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="mb-8 rounded border p-4 bg-gray-50">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm font-semibold">
@@ -142,20 +153,26 @@ export default function AdminEpisodesPage() {
         </button>
       </form>
 
-      <div className="space-y-3">
-        {episodes.map((episode) => (
-          <div key={episode.id} className="rounded border p-4">
-            <div className="text-sm text-gray-500">
-              {episode.season.show.title} · Season {episode.season.number} · Episode{" "}
-              {episode.number}
+      {episodes.length === 0 ? (
+        <div className="rounded border border-dashed border-gray-300 p-6 text-sm text-gray-600">
+          No episodes yet. Use the form above to add your first episode.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {episodes.map((episode) => (
+            <div key={episode.id} className="rounded border p-4">
+              <div className="text-sm text-gray-500">
+                {episode.season.show.title} · Season {episode.season.number} · Episode{" "}
+                {episode.number}
+              </div>
+              <div className="font-semibold">{episode.title}</div>
+              <div className="text-sm text-gray-600">
+                {episode.synopsis || "No synopsis"}
+              </div>
             </div>
-            <div className="font-semibold">{episode.title}</div>
-            <div className="text-sm text-gray-600">
-              {episode.synopsis || "No synopsis"}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

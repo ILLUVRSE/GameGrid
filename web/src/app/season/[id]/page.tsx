@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -20,6 +21,22 @@ export default async function SeasonPage({
     notFound();
   }
 
+  const formatRuntime = (seconds: number | null) => {
+    if (!seconds || Number.isNaN(seconds)) return "TBD";
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remaining = minutes % 60;
+    return `${hours}h ${remaining}m`;
+  };
+
+  const totalRuntimeSec = season.episodes.reduce(
+    (total, episode) =>
+      total + (episode.runtimeSec ?? episode.videoAsset?.durationSec ?? 0),
+    0,
+  );
+  const releaseYear = season.createdAt.getFullYear();
+
   return (
     <main className="min-h-screen bg-illuvrse-night px-6 py-16 text-illuvrse-snow">
       <div className="mx-auto w-full max-w-5xl">
@@ -33,6 +50,17 @@ export default async function SeasonPage({
           Season {season.number}
           {season.title ? `: ${season.title}` : ""}
         </h1>
+        <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {season.show.maturityRating || "NR"}
+          </span>
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {releaseYear}
+          </span>
+          <span className="rounded-full border border-illuvrse-stroke bg-illuvrse-panel/70 px-4 py-2">
+            {formatRuntime(totalRuntimeSec)}
+          </span>
+        </div>
         {season.synopsis && (
           <p className="mt-3 text-sm text-illuvrse-muted">{season.synopsis}</p>
         )}
@@ -76,4 +104,36 @@ export default async function SeasonPage({
       </div>
     </main>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const season = await prisma.season.findUnique({
+    where: { id },
+    include: { show: true },
+  });
+
+  if (!season) {
+    return {
+      title: "Season not found | ILLUVRSE",
+      description: "This season is not available.",
+    };
+  }
+
+  const title = `Season ${season.number} | ${season.show.title} | ILLUVRSE`;
+  const description = season.synopsis || season.show.synopsis || "Season details.";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: season.show.posterUrl ? [{ url: season.show.posterUrl }] : [],
+    },
+  };
 }

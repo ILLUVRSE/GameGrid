@@ -8,6 +8,8 @@ type Show = {
   slug: string;
   title: string;
   synopsis?: string;
+  heroImageUrl?: string | null;
+  posterUrl?: string | null;
 };
 
 export default function AdminShowsPage() {
@@ -132,6 +134,26 @@ export default function AdminShowsPage() {
             rows={2}
           />
         </div>
+        <div className="mb-2">
+          <label className="block font-semibold" htmlFor="posterUrl">Poster URL</label>
+          <input
+            id="posterUrl"
+            name="posterUrl"
+            value={form.posterUrl || ""}
+            onChange={handleInputChange}
+            className="w-full border px-2 py-1 rounded"
+          />
+        </div>
+        <div className="mb-2">
+          <label className="block font-semibold" htmlFor="heroImageUrl">Hero Image URL</label>
+          <input
+            id="heroImageUrl"
+            name="heroImageUrl"
+            value={form.heroImageUrl || ""}
+            onChange={handleInputChange}
+            className="w-full border px-2 py-1 rounded"
+          />
+        </div>
         <div className="flex space-x-4 mt-4">
           <button
             type="submit"
@@ -147,7 +169,13 @@ export default function AdminShowsPage() {
       {loading ? (
         <div>Loading...</div>
       ) : shows.length === 0 ? (
-        <div>No shows found.</div>
+        <div className="rounded border border-dashed border-gray-300 p-6 text-sm text-gray-600">
+          No shows yet.{" "}
+          <Link href="/admin/shows/new" className="text-blue-600 underline">
+            Create your first show
+          </Link>
+          .
+        </div>
       ) : (
         <table className="w-full border">
           <thead>

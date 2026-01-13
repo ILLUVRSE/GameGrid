@@ -21,6 +21,7 @@ model User {
   role           Role         @default(USER)
   profile        Profile?
   watchProgress  WatchProgress[]
+  watchlistItems WatchlistItem[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
@@ -53,6 +54,7 @@ model Show {
   aiMetadataUpdatedAt DateTime?
   embeddingVector Unsupported("vector")?
   seasons   Season[]
+  watchlistItems WatchlistItem[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -91,6 +93,7 @@ model Episode {
   videoAsset     VideoAsset?  @relation(fields: [videoAssetId], references: [id])
   videoAssetId   String?      @unique
   watchProgress  WatchProgress[]
+  watchlistItems WatchlistItem[]
   stationQueueItems StationQueueItem[] @relation("EpisodeQueue")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -122,6 +125,20 @@ model WatchProgress {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   
+  @@unique([userId, episodeId])
+}
+
+model WatchlistItem {
+  id        String  @id @default(uuid())
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  show      Show?   @relation(fields: [showId], references: [id])
+  showId    String?
+  episode   Episode? @relation(fields: [episodeId], references: [id])
+  episodeId String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, showId])
   @@unique([userId, episodeId])
 }
 

@@ -8,6 +8,8 @@ type Show = {
   title: string;
   slug: string;
   synopsis: string | null;
+  heroImageUrl: string | null;
+  posterUrl: string | null;
 };
 
 export default function AdminShowEditPage({ params }: { params: { id: string } }) {
@@ -43,6 +45,8 @@ export default function AdminShowEditPage({ params }: { params: { id: string } }
           title: form.title,
           slug: form.slug,
           synopsis: form.synopsis,
+          posterUrl: form.posterUrl,
+          heroImageUrl: form.heroImageUrl,
         }),
       });
       if (!res.ok) throw new Error("Failed to update show");
@@ -87,6 +91,22 @@ export default function AdminShowEditPage({ params }: { params: { id: string } }
             onChange={(event) => setForm({ ...form, synopsis: event.target.value })}
             className="mt-1 w-full rounded border px-2 py-1"
             rows={3}
+          />
+        </label>
+        <label className="mt-4 block text-sm font-semibold">
+          Poster URL
+          <input
+            value={form.posterUrl || ""}
+            onChange={(event) => setForm({ ...form, posterUrl: event.target.value })}
+            className="mt-1 w-full rounded border px-2 py-1"
+          />
+        </label>
+        <label className="mt-4 block text-sm font-semibold">
+          Hero Image URL
+          <input
+            value={form.heroImageUrl || ""}
+            onChange={(event) => setForm({ ...form, heroImageUrl: event.target.value })}
+            className="mt-1 w-full rounded border px-2 py-1"
           />
         </label>
         <button

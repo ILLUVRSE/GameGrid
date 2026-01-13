@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Show = { id: string; title: string };
 type Season = {
@@ -77,6 +78,16 @@ export default function AdminSeasonsPage() {
       <h1 className="text-2xl font-bold mb-4">Admin Seasons</h1>
       {error && <div className="mb-4 text-red-600">{error}</div>}
 
+      {shows.length === 0 && (
+        <div className="mb-6 rounded border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+          Add a show first so you can create seasons.{" "}
+          <Link className="text-blue-600 underline" href="/admin/shows/new">
+            Create a show
+          </Link>
+          .
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="mb-8 rounded border p-4 bg-gray-50">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm font-semibold">
@@ -141,19 +152,25 @@ export default function AdminSeasonsPage() {
         </button>
       </form>
 
-      <div className="space-y-3">
-        {seasons.map((season) => (
-          <div key={season.id} className="rounded border p-4">
-            <div className="text-sm text-gray-500">
-              {season.show.title} · Season {season.number}
+      {seasons.length === 0 ? (
+        <div className="rounded border border-dashed border-gray-300 p-6 text-sm text-gray-600">
+          No seasons yet. Use the form above to add your first season.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {seasons.map((season) => (
+            <div key={season.id} className="rounded border p-4">
+              <div className="text-sm text-gray-500">
+                {season.show.title} · Season {season.number}
+              </div>
+              <div className="font-semibold">{season.title || "Untitled season"}</div>
+              <div className="text-sm text-gray-600">
+                {season.synopsis || "No synopsis"}
+              </div>
             </div>
-            <div className="font-semibold">{season.title || "Untitled season"}</div>
-            <div className="text-sm text-gray-600">
-              {season.synopsis || "No synopsis"}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

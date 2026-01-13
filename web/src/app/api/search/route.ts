@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get('q')?.trim() || '';
   const type = searchParams.get('type') as SearchResultType | undefined;
   const limit = parseInt(searchParams.get('limit') || '10', 10);
+  const offset = parseInt(searchParams.get('offset') || '0', 10);
 
   if (!q) {
     return NextResponse.json(
@@ -18,14 +19,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const semanticResults = await semanticSearch(q, limit * 2);
+    const semanticResults = await semanticSearch(q, limit * 2 + offset);
     const filtered = semanticResults.filter((result) =>
       type ? result.type === type : true,
     );
 
     if (filtered.length > 0) {
+      const slice = filtered.slice(offset, offset + limit);
       return NextResponse.json({
-        results: filtered.slice(0, limit).map((result) => {
+        results: slice.map((result) => {
           if (result.type === 'show') {
             return {
               type: 'show' as const,
@@ -44,12 +46,14 @@ export async function GET(req: NextRequest) {
             seasonNumber: result.seasonNumber ?? 0,
           };
         }),
+        nextOffset: offset + slice.length < filtered.length ? offset + slice.length : null,
       });
     }
   } catch {
     // Fall back to keyword search when embeddings are unavailable.
   }
 
+  const take = limit + offset;
   const [shows, episodes] = await Promise.all([
     type && type !== 'show'
       ? Promise.resolve([])
@@ -60,7 +64,7 @@ export async function GET(req: NextRequest) {
               { synopsis: { contains: q, mode: 'insensitive' } },
             ],
           },
-          take: limit,
+          take,
         }),
     type && type !== 'episode'
       ? Promise.resolve([])
@@ -72,11 +76,11 @@ export async function GET(req: NextRequest) {
             ],
           },
           include: { season: true },
-          take: limit,
+          take,
         }),
   ]);
 
-  const results = [
+  const combined = [
     ...shows.map((show) => ({ type: 'show' as const, ...show })),
     ...episodes.map((episode) => ({
       type: 'episode' as const,
@@ -85,7 +89,10 @@ export async function GET(req: NextRequest) {
     })),
   ]
     .sort((a, b) => a.title.localeCompare(b.title))
-    .slice(0, limit);
+    .slice(offset, offset + limit);
 
-  return NextResponse.json({ results });
+  const totalFetched = shows.length + episodes.length;
+  const hasMore = offset + limit < totalFetched;
+
+  return NextResponse.json({ results: combined, nextOffset: hasMore ? offset + limit : null });
 }

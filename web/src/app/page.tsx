@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const metadata = {
+  title: "ILLUVRSE | Streaming & Media",
+  description:
+    "Streaming originals and always-on GameGrid drops from the ILLUVRSE universe.",
+};
+
 export default async function Home() {
   const shows = await prisma.show.findMany({
     orderBy: { createdAt: "desc" },

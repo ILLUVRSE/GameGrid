@@ -42,7 +42,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid slug.' }, { status: 400 });
   }
   try {
-    const show = await createShow({ title: data.title, synopsis: data.synopsis, slug });
+    const show = await createShow({
+      title: data.title,
+      synopsis: data.synopsis,
+      slug,
+      heroImageUrl: data.heroImageUrl,
+      posterUrl: data.posterUrl,
+    });
     return NextResponse.json(show, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

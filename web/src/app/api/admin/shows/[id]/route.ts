@@ -49,7 +49,13 @@ export async function PATCH(
   }
 
   const data = await req.json();
-  const updates: { title?: string; synopsis?: string | null; slug?: string } = {};
+  const updates: {
+    title?: string;
+    synopsis?: string | null;
+    slug?: string;
+    heroImageUrl?: string | null;
+    posterUrl?: string | null;
+  } = {};
   if (typeof data.title === 'string') updates.title = data.title;
   if (typeof data.synopsis === 'string' || data.synopsis === null) {
     updates.synopsis = data.synopsis;
@@ -60,6 +66,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid slug.' }, { status: 400 });
     }
     updates.slug = slug;
+  }
+  if (typeof data.heroImageUrl === 'string' || data.heroImageUrl === null) {
+    updates.heroImageUrl = data.heroImageUrl;
+  }
+  if (typeof data.posterUrl === 'string' || data.posterUrl === null) {
+    updates.posterUrl = data.posterUrl;
   }
 
   try {

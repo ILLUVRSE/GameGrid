@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import VideoPlayer from "@/components/VideoPlayer";
+import type { Metadata } from "next";
 
 export default async function WatchPage({
   params,
@@ -34,17 +36,51 @@ export default async function WatchPage({
         <p className="mt-3 text-sm text-illuvrse-muted">
           {episode.synopsis || "No synopsis yet."}
         </p>
-        <div className="mt-8 rounded-3xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-8">
-          <p className="text-sm text-illuvrse-muted">
-            Video playback placeholder. Attach a VideoAsset to enable playback.
-          </p>
-          {episode.videoAsset && (
-            <div className="mt-4 text-xs text-illuvrse-muted">
-              Source: {episode.videoAsset.hlsManifestUrl || episode.videoAsset.sourceUrl}
-            </div>
-          )}
+        <div className="mt-8">
+          <VideoPlayer
+            episodeId={episode.id}
+            hlsUrl={episode.videoAsset?.hlsManifestUrl}
+            sourceUrl={episode.videoAsset?.sourceUrl}
+            posterUrl={episode.season.show.posterUrl}
+          />
         </div>
       </div>
     </main>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ episodeId: string }>;
+}): Promise<Metadata> {
+  const { episodeId } = await params;
+  const episode = await prisma.episode.findUnique({
+    where: { id: episodeId },
+    include: { season: { include: { show: true } } },
+  });
+
+  if (!episode) {
+    return {
+      title: "Watch | ILLUVRSE",
+      description: "Playback is unavailable for this episode.",
+    };
+  }
+
+  const title = `Watch ${episode.title} | ${episode.season.show.title}`;
+  const description =
+    episode.seoDescription ||
+    episode.synopsis ||
+    episode.season.show.synopsis ||
+    "Streaming on ILLUVRSE.";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: episode.season.show.posterUrl ? [{ url: episode.season.show.posterUrl }] : [],
+    },
+  };
 }

@@ -6,19 +6,33 @@ export async function listShows() {
   });
 }
 
-export async function createShow(params: { title: string; synopsis?: string; slug: string }) {
+export async function createShow(params: {
+  title: string;
+  synopsis?: string;
+  slug: string;
+  heroImageUrl?: string | null;
+  posterUrl?: string | null;
+}) {
   return prisma.show.create({
     data: {
       title: params.title,
       synopsis: params.synopsis,
       slug: params.slug,
+      heroImageUrl: params.heroImageUrl ?? null,
+      posterUrl: params.posterUrl ?? null,
     },
   });
 }
 
 export async function updateShow(
   id: string,
-  updates: Partial<{ title: string; synopsis: string | null; slug: string }>
+  updates: Partial<{
+    title: string;
+    synopsis: string | null;
+    slug: string;
+    heroImageUrl: string | null;
+    posterUrl: string | null;
+  }>
 ) {
   return prisma.show.update({
     where: { id },

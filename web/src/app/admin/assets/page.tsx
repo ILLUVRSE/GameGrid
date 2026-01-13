@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Episode = {
   id: string;
@@ -100,6 +101,16 @@ export default function AdminAssetsPage() {
       <h1 className="text-2xl font-bold mb-4">Admin Assets</h1>
       {error && <div className="mb-4 text-red-600">{error}</div>}
 
+      {episodes.length === 0 && (
+        <div className="mb-6 rounded border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+          Add an episode before attaching a video asset.{" "}
+          <Link className="text-blue-600 underline" href="/admin/episodes">
+            Create an episode
+          </Link>
+          .
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="mb-8 rounded border p-4 bg-gray-50">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm font-semibold">
@@ -149,25 +160,31 @@ export default function AdminAssetsPage() {
         </button>
       </form>
 
-      <div className="space-y-3">
-        {assets.map((asset) => (
-          <div key={asset.id} className="rounded border p-4">
-            <div className="text-sm text-gray-500">Asset {asset.id}</div>
-            <div className="text-sm">Source: {asset.sourceUrl}</div>
-            <div className="text-sm text-gray-600">
-              HLS: {asset.hlsManifestUrl || "Not transcoded"}
+      {assets.length === 0 ? (
+        <div className="rounded border border-dashed border-gray-300 p-6 text-sm text-gray-600">
+          No assets yet. Add a source URL above to attach the first video asset.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded border p-4">
+              <div className="text-sm text-gray-500">Asset {asset.id}</div>
+              <div className="text-sm">Source: {asset.sourceUrl}</div>
+              <div className="text-sm text-gray-600">
+                HLS: {asset.hlsManifestUrl || "Not transcoded"}
+              </div>
+              <button
+                type="button"
+                className="mt-3 rounded bg-blue-600 px-3 py-1 text-xs text-white"
+                onClick={() => handleTranscode(asset.id)}
+                disabled={transcodingId === asset.id}
+              >
+                {transcodingId === asset.id ? "Transcoding..." : "Transcode to HLS"}
+              </button>
             </div>
-            <button
-              type="button"
-              className="mt-3 rounded bg-blue-600 px-3 py-1 text-xs text-white"
-              onClick={() => handleTranscode(asset.id)}
-              disabled={transcodingId === asset.id}
-            >
-              {transcodingId === asset.id ? "Transcoding..." : "Transcode to HLS"}
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

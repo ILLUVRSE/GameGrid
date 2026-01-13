@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 type SearchResult =
   | {
@@ -23,21 +24,52 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [filter, setFilter] = useState<"all" | "show" | "episode">("all");
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const searchParams = useSearchParams();
 
-  const handleSearch = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const trimmed = query.trim();
+  const runSearch = async (
+    term: string,
+    options?: { append?: boolean; offset?: number },
+  ) => {
+    const trimmed = term.trim();
     if (!trimmed) return;
+    const offset = options?.offset ?? 0;
     setStatus("loading");
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      const typeParam = filter === "all" ? "" : `&type=${filter}`;
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(trimmed)}${typeParam}&offset=${offset}`,
+      );
       if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
-      setResults(data.results || []);
+      setResults((prev) =>
+        options?.append ? [...prev, ...(data.results || [])] : data.results || [],
+      );
+      setNextOffset(typeof data.nextOffset === "number" ? data.nextOffset : null);
       setStatus("idle");
     } catch {
       setStatus("error");
     }
+  };
+
+  useEffect(() => {
+    const initialQuery = searchParams.get("q")?.trim() || "";
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
+      runSearch(initialQuery, { offset: 0 });
+    }
+  }, [searchParams, query]);
+
+  useEffect(() => {
+    if (query.trim()) {
+      runSearch(query, { offset: 0 });
+    }
+  }, [filter]);
+
+  const handleSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await runSearch(query, { offset: 0 });
   };
 
   return (
@@ -61,6 +93,23 @@ export default function SearchPage() {
             Search
           </button>
         </form>
+        <div className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
+          {(["all", "show", "episode"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+              className={`rounded-full border px-4 py-2 transition ${
+                filter === value
+                  ? "border-illuvrse-electric text-illuvrse-electric"
+                  : "border-illuvrse-stroke text-illuvrse-muted hover:border-illuvrse-electric"
+              }`}
+            >
+              {value === "all" ? "All" : value === "show" ? "Shows" : "Episodes"}
+            </button>
+          ))}
+        </div>
 
         <div className="mt-10 space-y-4">
           {status === "error" && (
@@ -69,8 +118,13 @@ export default function SearchPage() {
             </div>
           )}
           {status === "loading" && (
-            <div className="rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/70 p-5 text-sm text-illuvrse-muted">
-              Searching the archive...
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-32 rounded-2xl border border-illuvrse-stroke bg-illuvrse-panel/60 animate-pulse"
+                />
+              ))}
             </div>
           )}
           {status === "idle" && results.length === 0 && (
@@ -113,6 +167,15 @@ export default function SearchPage() {
               )}
             </div>
           ))}
+          {nextOffset !== null && status !== "loading" && results.length > 0 && (
+            <button
+              type="button"
+              onClick={() => runSearch(query, { append: true, offset: nextOffset })}
+              className="rounded-full border border-illuvrse-stroke px-6 py-3 text-sm font-semibold text-illuvrse-snow transition hover:border-illuvrse-electric hover:text-illuvrse-electric"
+            >
+              Load more
+            </button>
+          )}
         </div>
       </div>
     </main>
