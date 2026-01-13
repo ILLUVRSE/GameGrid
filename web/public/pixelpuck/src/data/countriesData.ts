@@ -31,7 +31,7 @@ const regionThemes = {
   },
 };
 
-const themeFor = (region, accent) => ({
+const themeFor = (region: string, accent: string) => ({
   table: {
     fill: regionThemes[region]?.fill ?? "#0c111e",
     line: regionThemes[region]?.line ?? "rgba(255,255,255,0.3)",
