@@ -3,6 +3,8 @@ import { getSessionFromRequest } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 function isAdmin(req: NextRequest) {
   const session = getSessionFromRequest(req);
   return session?.role === Role.ADMIN || session?.role === Role.EDITOR;
