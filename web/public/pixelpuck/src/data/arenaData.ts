@@ -112,4 +112,4 @@ export const ARENAS = [
 
 export const arenaByZoneId = new Map(ARENAS.map((arena) => [arena.id, arena]));
 
-export const getArena = (zoneId) => arenaByZoneId.get(zoneId) ?? ARENAS[0];
+export const getArena = (zoneId: string) => arenaByZoneId.get(zoneId) ?? ARENAS[0];
