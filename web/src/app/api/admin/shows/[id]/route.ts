@@ -20,14 +20,15 @@ function slugify(value: string) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const show = await prisma.show.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       seasons: { orderBy: { number: 'asc' } },
     },
@@ -42,8 +43,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -75,7 +77,7 @@ export async function PATCH(
   }
 
   try {
-    const show = await updateShow(params.id, updates);
+    const show = await updateShow(id, updates);
     return NextResponse.json(show);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -87,14 +89,15 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    await deleteShow(params.id);
+    await deleteShow(id);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Show not found.' }, { status: 404 });

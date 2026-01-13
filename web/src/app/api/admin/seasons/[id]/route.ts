@@ -10,14 +10,15 @@ function isAdmin(req: NextRequest) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const season = await prisma.season.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       show: true,
       episodes: { orderBy: { number: "asc" }, include: { videoAsset: true } },
@@ -33,8 +34,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -55,7 +57,7 @@ export async function PATCH(
 
   try {
     const season = await prisma.season.update({
-      where: { id: params.id },
+      where: { id },
       data: updates,
     });
     return NextResponse.json(season);
@@ -69,14 +71,15 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    await prisma.season.delete({ where: { id: params.id } });
+    await prisma.season.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Season not found." }, { status: 404 });

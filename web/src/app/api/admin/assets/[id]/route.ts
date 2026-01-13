@@ -10,14 +10,15 @@ function isAdmin(req: NextRequest) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const asset = await prisma.videoAsset.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { episode: true },
   });
 
@@ -30,8 +31,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -78,7 +80,7 @@ export async function PATCH(
 
   try {
     const asset = await prisma.videoAsset.update({
-      where: { id: params.id },
+      where: { id },
       data: updates,
     });
     return NextResponse.json(asset);
@@ -89,14 +91,15 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    await prisma.videoAsset.delete({ where: { id: params.id } });
+    await prisma.videoAsset.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Asset not found." }, { status: 404 });

@@ -10,8 +10,9 @@ function isAdmin(req: NextRequest) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   if (!isAdmin(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -23,13 +24,13 @@ export async function POST(
   }
 
   try {
-    const season = await prisma.season.findUnique({ where: { id: params.id } });
+    const season = await prisma.season.findUnique({ where: { id } });
     if (!season) {
       return NextResponse.json({ error: 'Season not found.' }, { status: 404 });
     }
     const episode = await prisma.episode.create({
       data: {
-        seasonId: params.id,
+        seasonId: id,
         number,
         title: data.title,
         synopsis: typeof data.synopsis === 'string' ? data.synopsis : null,

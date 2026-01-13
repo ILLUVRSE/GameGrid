@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const season = await prisma.season.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       show: true,
       episodes: { orderBy: { number: "asc" }, include: { videoAsset: true } },
