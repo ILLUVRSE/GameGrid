@@ -41,9 +41,35 @@ const TWIST_LABELS = {
 
 const twistLabel = (twist) => TWIST_LABELS[twist] ?? twist;
 
+const JERSEY_COLORS = {
+  blue: "#2f7bff",
+  red: "#ef4444",
+  white: "#f8fafc",
+  black: "#0f172a",
+  green: "#22c55e",
+  yellow: "#facc15",
+  purple: "#a855f7",
+  orange: "#f97316",
+};
+
+const JERSEY_ORDER = ["blue", "red", "white", "black", "green", "yellow", "purple", "orange"];
+
 const imageCache = new Map();
+const spriteCache = new Map();
+const spriteBoundsCache = new Map();
+const PLAYER_SPRITE_SRC = "assets/playersprite.png";
+const GOALIE_SPRITE_SRC = "assets/goaliesprite.png";
 
 const getArenaImage = (src) => {
+  if (!src) return null;
+  if (imageCache.has(src)) return imageCache.get(src);
+  const img = new Image();
+  img.src = encodeURI(src);
+  imageCache.set(src, img);
+  return img;
+};
+
+const getSpriteImage = (src) => {
   if (!src) return null;
   if (imageCache.has(src)) return imageCache.get(src);
   const img = new Image();
@@ -547,6 +573,187 @@ const blendColor = (a, b, t) => {
   )})`;
 };
 
+const buildJerseyPalette = (color) => ({
+  primary: color,
+  secondary: blendColor(color, "#0b1224", 0.6),
+});
+
+const mixChannels = (a, b, t) => ({
+  r: clampChannel(a.r + (b.r - a.r) * t),
+  g: clampChannel(a.g + (b.g - a.g) * t),
+  b: clampChannel(a.b + (b.b - a.b) * t),
+});
+
+const getTintedSprite = (img, palette) => {
+  if (!img || !palette?.primary) return img;
+  const key = `${img.src}|${palette.primary}|${palette.secondary ?? ""}`;
+  if (spriteCache.has(key)) return spriteCache.get(key);
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return img;
+  const primary = parseColor(palette.primary);
+  const secondary = parseColor(palette.secondary ?? palette.primary);
+  if (!primary || !secondary) return img;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img;
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const boundsReady = spriteBoundsCache.has(img.src);
+  const bounds = boundsReady ? spriteBoundsCache.get(img.src) : null;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+    if (a < 10) continue;
+    if (bounds?.bg) {
+      const bg = bounds.bg;
+      const dist = Math.abs(r - bg.r) + Math.abs(g - bg.g) + Math.abs(b - bg.b);
+      if (dist < 18) {
+        data[i + 3] = 0;
+        continue;
+      }
+    }
+    const isBlue = b > 35 && b >= r + 6 && b >= g + 6;
+    if (!isBlue) continue;
+    const brightness = (r + g + b) / 765;
+    const t = Math.min(1, Math.max(0, (brightness - 0.2) / 0.7));
+    const mixed = mixChannels(secondary, primary, t);
+    data[i] = mixed.r;
+    data[i + 1] = mixed.g;
+    data[i + 2] = mixed.b;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  if (bounds) {
+    const trimmed = document.createElement("canvas");
+    trimmed.width = bounds.w;
+    trimmed.height = bounds.h;
+    const trimCtx = trimmed.getContext("2d");
+    if (trimCtx) {
+      trimCtx.drawImage(canvas, bounds.x, bounds.y, bounds.w, bounds.h, 0, 0, bounds.w, bounds.h);
+      spriteCache.set(key, trimmed);
+      return trimmed;
+    }
+  }
+  if (boundsReady) {
+    spriteCache.set(key, canvas);
+  }
+  return canvas;
+};
+
+const getSpriteBounds = (img) => {
+  if (!img) return null;
+  if (spriteBoundsCache.has(img.src)) return spriteBoundsCache.get(img.src);
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  let hasTransparency = false;
+  for (let i = 3; i < data.length; i += 32) {
+    if (data[i] < 250) {
+      hasTransparency = true;
+      break;
+    }
+  }
+  let bg = null;
+  if (!hasTransparency) {
+    const counts = new Map();
+    const step = 8;
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        const idx = (y * w + x) * 4;
+        const r = data[idx] >> 4;
+        const g = data[idx + 1] >> 4;
+        const b = data[idx + 2] >> 4;
+        const key = (r << 8) | (g << 4) | b;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    let bestKey = null;
+    let bestCount = -1;
+    for (const [key, count] of counts.entries()) {
+      if (count > bestCount) {
+        bestCount = count;
+        bestKey = key;
+      }
+    }
+    if (bestKey !== null) {
+      const r = ((bestKey >> 8) & 15) * 17;
+      const g = ((bestKey >> 4) & 15) * 17;
+      const b = (bestKey & 15) * 17;
+      bg = { r, g, b };
+    }
+  }
+  let minX = w;
+  let minY = h;
+  let maxX = 0;
+  let maxY = 0;
+  let found = false;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const idx = (y * w + x) * 4;
+      const a = data[idx + 3];
+      if (a <= 10) continue;
+      if (bg) {
+        const dist =
+          Math.abs(data[idx] - bg.r) + Math.abs(data[idx + 1] - bg.g) + Math.abs(data[idx + 2] - bg.b);
+        if (dist < 18) continue;
+      }
+      if (a > 10) {
+        found = true;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (!found) {
+    spriteBoundsCache.set(img.src, null);
+    return null;
+  }
+  const bounds = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1, bg };
+  spriteBoundsCache.set(img.src, bounds);
+  return bounds;
+};
+
+const drawSprite = (ctx, img, x, y, size, angle = 0) => {
+  if (!img) return;
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return;
+  const scale = size / Math.max(w, h);
+  const drawW = w * scale;
+  const drawH = h * scale;
+  const prevSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.save();
+  ctx.translate(x, y);
+  if (angle) ctx.rotate(angle);
+  ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+  ctx.imageSmoothingEnabled = prevSmoothing;
+};
+
+const deriveAltPalette = (palette) => {
+  if (!palette?.primary) return null;
+  return {
+    primary: blendColor(palette.primary, "#ffffff", 0.35),
+    secondary: blendColor(palette.secondary ?? palette.primary, "#0b1224", 0.35),
+  };
+};
+
 const drawRoundedRect = (ctx, x, y, width, height, radius) => {
   const r = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
@@ -562,83 +769,33 @@ const drawRoundedRect = (ctx, x, y, width, height, radius) => {
   ctx.closePath();
 };
 
-const drawPlayers = (ctx, players, controlledId, ownerId, power, rinkTheme = null, time = 0) => {
+const drawPlayers = (ctx, players, controlledId, ownerId, power, rinkTheme = null, time = 0, teamPalette = null) => {
+  const baseSprite = getSpriteImage(PLAYER_SPRITE_SRC);
+  getSpriteBounds(baseSprite);
   players.forEach((player) => {
-    const base = player.team === "home" ? "#43d9ad" : "#f6c453";
-    const accent = rinkTheme?.accent ?? "#7aa2ff";
-    const jersey = blendColor(base, accent, 0.15);
-    const stripe = blendColor(base, accent, 0.45);
-    const helmet = blendColor(base, "#ffffff", 0.2);
-    const dirX = player.dirX || 1;
-    const dirY = player.dirY || 0;
-    const stickLength = STICK_LENGTH * 1.08;
-    const torsoRadius = PLAYER_RADIUS * 0.88;
+    const palette = teamPalette?.[player.team] ?? null;
+    const base = palette?.primary ?? (player.team === "home" ? "#43d9ad" : "#f6c453");
+    const accent = palette?.secondary ?? rinkTheme?.accent ?? "#7aa2ff";
     const speed = Math.hypot(player.vx || 0, player.vy || 0);
     const stride = clamp(speed / 220, 0, 1);
     const stridePhase = time * 8 + player.id;
     const skateOffset = Math.sin(stridePhase) * 4 * stride;
+    const bob = Math.cos(stridePhase * 0.6) * 2.2 * stride;
+    const dirX = player.dirX || 1;
+    const dirY = player.dirY || 0;
+    const charge = clamp(player.shootCharge ?? 0, 0, 1);
+    const twitch = Math.sin(time * 12 + player.id) * 0.06 * stride;
+    const deke = Math.sin(time * 20 + player.id * 0.7) * 0.18 * charge;
+    const angle = Math.atan2(dirY, dirX) + Math.sin(stridePhase * 0.7) * 0.24 * stride + twitch + deke;
+    const tintedSprite = getTintedSprite(baseSprite, { primary: base, secondary: accent });
 
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
     ctx.ellipse(player.x + 2, player.y + 5, PLAYER_RADIUS * 1.05, PLAYER_RADIUS * 0.8, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "rgba(12,16,26,0.9)";
-    ctx.beginPath();
-    ctx.ellipse(
-      player.x - torsoRadius * 0.35 + skateOffset,
-      player.y + torsoRadius * 0.9,
-      torsoRadius * 0.35,
-      torsoRadius * 0.2,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(
-      player.x + torsoRadius * 0.35 - skateOffset,
-      player.y + torsoRadius * 0.9,
-      torsoRadius * 0.35,
-      torsoRadius * 0.2,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-
-    ctx.fillStyle = helmet;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y - torsoRadius * 0.55, PLAYER_RADIUS * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = jersey;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y + torsoRadius * 0.05, torsoRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.strokeStyle = stripe;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(player.x, player.y + torsoRadius * 0.15, torsoRadius * 0.7, Math.PI * 0.1, Math.PI * 0.9);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = "bold 9px \"Space Grotesk\", sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.strokeStyle = "rgba(0,0,0,0.45)";
-    ctx.lineWidth = 2;
-    const number = ((player.id ?? 0) % 99) + 1;
-    const numberY = player.y + torsoRadius * 0.12;
-    ctx.strokeText(String(number), player.x, numberY);
-    ctx.fillText(String(number), player.x, numberY);
+    const strafe = Math.sin(stridePhase * 1.3) * 1.6 * stride;
+    drawSprite(ctx, tintedSprite, player.x + strafe, player.y + skateOffset * 0.3 + bob, PLAYER_RADIUS * 4, angle);
 
     if (player.id === ownerId) {
       ctx.strokeStyle = "rgba(255, 240, 140, 0.85)";
@@ -654,20 +811,6 @@ const drawPlayers = (ctx, players, controlledId, ownerId, power, rinkTheme = nul
       ctx.arc(player.x, player.y, PLAYER_RADIUS + 4, 0, Math.PI * 2);
       ctx.stroke();
     }
-
-    const stickWobble = Math.sin(stridePhase + 1.2) * 2 * stride;
-    ctx.strokeStyle = "rgba(10,12,18,0.8)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(player.x + dirX * torsoRadius * 0.4, player.y + dirY * torsoRadius * 0.4);
-    ctx.lineTo(player.x + dirX * stickLength + stickWobble, player.y + dirY * stickLength + stickWobble);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(210, 175, 120, 0.9)";
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(player.x + dirX * stickLength + stickWobble, player.y + dirY * stickLength + stickWobble);
-    ctx.lineTo(player.x + dirX * (stickLength + 8) + stickWobble, player.y + dirY * (stickLength + 8) + stickWobble);
-    ctx.stroke();
 
     if (player.id === controlledId && power > 0) {
       const width = 34;
@@ -685,32 +828,24 @@ const drawPlayers = (ctx, players, controlledId, ownerId, power, rinkTheme = nul
   });
 };
 
-const drawGoalies = (ctx, goalies, saveFlash = 0, rinkTheme = null, time = 0) => {
+const drawGoalies = (ctx, goalies, saveFlash = 0, rinkTheme = null, time = 0, teamPalette = null) => {
   if (!goalies) return;
+  const baseSprite = getSpriteImage(GOALIE_SPRITE_SRC);
+  getSpriteBounds(baseSprite);
   Object.values(goalies).forEach((goalie) => {
     const radius = goalie.r || GOALIE_RADIUS;
-    const accent = rinkTheme?.accent ?? "#7aa2ff";
-    const padColor = blendColor(goalie.team === "home" ? "#2dd4bf" : "#f97316", accent, 0.2);
+    const palette = teamPalette?.[goalie.team] ?? null;
+    const base = palette?.primary ?? (goalie.team === "home" ? "#2dd4bf" : "#f97316");
+    const accent = palette?.secondary ?? rinkTheme?.accent ?? "#7aa2ff";
     const pulse = Math.sin(time * 4 + goalie.x * 0.02) * 0.5 + 0.5;
+    const idle = Math.sin(time * 2 + goalie.x * 0.01) * 0.9;
+    const angle = Math.sin(time * 1.4 + goalie.x * 0.02) * 0.06;
+    const tintedSprite = getTintedSprite(baseSprite, { primary: base, secondary: accent });
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.beginPath();
     ctx.ellipse(goalie.x + 2, goalie.y + 4, radius * 1.05, radius * 0.8, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = padColor;
-    drawRoundedRect(ctx, goalie.x - radius * 1.1, goalie.y - radius * 0.1, radius * 0.6, radius * 1.4, 6);
-    ctx.fill();
-    drawRoundedRect(ctx, goalie.x + radius * 0.5, goalie.y - radius * 0.1, radius * 0.6, radius * 1.4, 6);
-    ctx.fill();
-    ctx.strokeStyle = `rgba(255,255,255,${0.15 + pulse * 0.2})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = goalie.team === "home" ? "#2dd4bf" : "#f97316";
-    ctx.beginPath();
-    ctx.arc(goalie.x, goalie.y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    drawSprite(ctx, tintedSprite, goalie.x, goalie.y + idle, radius * 4, angle);
     if (saveFlash > 0) {
       ctx.strokeStyle = `rgba(255,255,255,${0.6 * saveFlash})`;
       ctx.lineWidth = 2;
@@ -836,6 +971,14 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
     : isWatch
       ? "Watch session complete."
       : "Match complete. Ready to drop the puck again?";
+  const jerseyButtons = JERSEY_ORDER.map(
+    (color) => `
+        <button class="jersey-option" data-color="${color}">
+          <span class="jersey-swatch" style="--swatch:${JERSEY_COLORS[color]}"></span>
+          <span class="jersey-label-text">${color}</span>
+        </button>
+      `,
+  ).join("");
   const setupBlock = isOnline
     ? `
     <div class="hockey94-connection" id="hockey94-connection">
@@ -875,36 +1018,56 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
       ? ""
       : `
     <div class="hockey94-setup" id="hockey94-setup">
-      <div class="connection-card">
-        <h3>${connectionTitle}</h3>
-        <p>${connectionCopy}</p>
-        ${
-          isWatch
-            ? `
-        <div class="setup-row">
-          <label for="hockey94-arena">Arena</label>
-          <select id="hockey94-arena"></select>
+      <div class="hockey94-setup-grid">
+        <div class="connection-card">
+          <h3>${connectionTitle}</h3>
+          <p>${connectionCopy}</p>
+          ${
+            isWatch
+              ? `
+          <div class="setup-row">
+            <label for="hockey94-arena">Arena</label>
+            <select id="hockey94-arena"></select>
+          </div>
+          <p class="setup-preview" id="hockey94-preview">Arena: --</p>
+          <div class="button-row">
+            <button class="primary" id="hockey94-start-solo" disabled>Start Watch</button>
+          </div>
+          `
+              : `
+          <div class="setup-row">
+            <label for="hockey94-country">Country</label>
+            <select id="hockey94-country"></select>
+          </div>
+          <div class="setup-row">
+            <label for="hockey94-arena">Arena</label>
+            <select id="hockey94-arena"></select>
+          </div>
+          <p class="setup-preview" id="hockey94-preview">Country: -- | Arena: --</p>
+          <div class="button-row">
+            <button class="primary" id="hockey94-start-solo" disabled>Start Match</button>
+          </div>
+          `
+          }
         </div>
-        <p class="setup-preview" id="hockey94-preview">Arena: --</p>
-        <div class="button-row">
-          <button class="primary" id="hockey94-start-solo" disabled>Start Watch</button>
+        <div class="connection-card jersey-card">
+          <h3>Jersey Colors</h3>
+          <p>Pick away on the left, home on the right.</p>
+          <div class="jersey-grid">
+            <div class="jersey-column">
+              <div class="jersey-label">Away</div>
+              <div class="jersey-options" data-side="away">
+                ${jerseyButtons}
+              </div>
+            </div>
+            <div class="jersey-column">
+              <div class="jersey-label">Home</div>
+              <div class="jersey-options" data-side="home">
+                ${jerseyButtons}
+              </div>
+            </div>
+          </div>
         </div>
-        `
-            : `
-        <div class="setup-row">
-          <label for="hockey94-country">Country</label>
-          <select id="hockey94-country"></select>
-        </div>
-        <div class="setup-row">
-          <label for="hockey94-arena">Arena</label>
-          <select id="hockey94-arena"></select>
-        </div>
-        <p class="setup-preview" id="hockey94-preview">Country: -- | Arena: --</p>
-        <div class="button-row">
-          <button class="primary" id="hockey94-start-solo" disabled>Start Match</button>
-        </div>
-        `
-        }
       </div>
     </div>
   `;
@@ -983,6 +1146,8 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
   const setupPane = screen.querySelector("#hockey94-setup");
   const countrySelect = screen.querySelector("#hockey94-country");
   const arenaSelect = screen.querySelector("#hockey94-arena");
+  const jerseyColumns = Array.from(screen.querySelectorAll(".jersey-options"));
+  const jerseyOptions = Array.from(screen.querySelectorAll(".jersey-option"));
   const setupPreview = screen.querySelector("#hockey94-preview");
   const soloStart = screen.querySelector("#hockey94-start-solo");
 
@@ -997,6 +1162,7 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
   let backgroundImage = null;
   let selectedCountry = null;
   let selectedArena = null;
+  let teamPalette = null;
   let soloActive = false;
   let watchPeriod = 1;
   let watchClock = WATCH_PERIOD_SECONDS;
@@ -1006,6 +1172,7 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
   let lastScores = { home: 0, away: 0 };
   let scoreInitialized = false;
   let lastShotPower = 0.7;
+  let jerseySelection = { away: "red", home: "blue" };
   const unlockAudio = () => audio.resume();
   window.addEventListener("pointerdown", unlockAudio, { once: true });
   window.addEventListener("keydown", unlockAudio, { once: true });
@@ -1016,6 +1183,33 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
   let token = null;
   let isHost = false;
   let isConnected = false;
+
+  const updateJerseyButtons = (side) => {
+    jerseyOptions.forEach((button) => {
+      if (button.dataset.side !== side) return;
+      const isActive = button.dataset.color === jerseySelection[side];
+      button.classList.toggle("active", isActive);
+    });
+  };
+
+  jerseyColumns.forEach((column) => {
+    const side = column.dataset.side;
+    if (!side) return;
+    column.querySelectorAll(".jersey-option").forEach((button) => {
+      button.dataset.side = side;
+    });
+    updateJerseyButtons(side);
+  });
+
+  jerseyOptions.forEach((button) => {
+    button.addEventListener("click", () => {
+      const side = button.dataset.side;
+      const color = button.dataset.color;
+      if (!side || !color) return;
+      jerseySelection = { ...jerseySelection, [side]: color };
+      updateJerseyButtons(side);
+    });
+  });
 
   const applySkaterModifiers = (player, attributes) => {
     const modifiers = buildSkaterModifiers(attributes || {});
@@ -1348,6 +1542,19 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
       scoreToWin: rules.scoreToWin,
       mercyRule: rules.mercyRule,
     };
+    const homePalette = selectedCountry?.teamColors ?? null;
+    const awayPalette = selectedArena?.teamColors ?? null;
+    const configHomePalette = config?.homeColors ?? null;
+    const configAwayPalette = config?.awayColors ?? null;
+    const jerseyHome = !isFranchise && jerseySelection?.home ? buildJerseyPalette(JERSEY_COLORS[jerseySelection.home]) : null;
+    const jerseyAway = !isFranchise && jerseySelection?.away ? buildJerseyPalette(JERSEY_COLORS[jerseySelection.away]) : null;
+    teamPalette =
+      configHomePalette || configAwayPalette || jerseyHome || jerseyAway || homePalette || awayPalette
+        ? {
+            home: configHomePalette ?? jerseyHome ?? homePalette ?? deriveAltPalette(awayPalette),
+            away: configAwayPalette ?? jerseyAway ?? awayPalette ?? deriveAltPalette(homePalette),
+          }
+        : null;
     soloMatch.scores.home = 0;
     soloMatch.scores.away = 0;
     lastScores = { home: 0, away: 0 };
@@ -1482,10 +1689,10 @@ const renderHockey94Screen = ({ onBack, mode, config, onComplete }) => {
       const shake = hitFlash * 1.6;
       ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     }
-    drawGoalies(ctx, frame.goalies, saveFlash, rinkTheme || undefined, animTime);
+    drawGoalies(ctx, frame.goalies, saveFlash, rinkTheme || undefined, animTime, teamPalette);
     const controlled = frame.players.find((player) => player.id === playerId);
     const power = clamp((controlled?.shootCharge || 0) / 1, 0, 1);
-    drawPlayers(ctx, frame.players, playerId, frame.puck.ownerId, power, rinkTheme || undefined, animTime);
+    drawPlayers(ctx, frame.players, playerId, frame.puck.ownerId, power, rinkTheme || undefined, animTime, teamPalette);
     drawPuck(ctx, frame.puck);
     ctx.restore();
     setScores(frame.scores);

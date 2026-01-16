@@ -3,6 +3,10 @@ import { getUserByEmail } from '@/lib/db/user';
 import { verifyPassword } from '@/lib/auth/password';
 import { createSessionToken } from '@/lib/auth/jwt';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();

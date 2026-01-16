@@ -11,6 +11,10 @@ import {
 } from '@/lib/db/user';
 import { Role } from '@prisma/client';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 function sanitizeUser<T extends { passwordHash?: string }>(user: T) {
   const { passwordHash, ...safe } = user;
   return safe;

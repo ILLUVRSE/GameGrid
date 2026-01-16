@@ -120,21 +120,21 @@ const showModeSelect = () => {
           <button id="mode-tournament" class="primary">Enter Tournament</button>
         </div>
       </div>
-      <div class="menu-card mode-card">
+      <div class="menu-card mode-card mode-card-3v3">
         <h3>3v3 Arcade Hockey (Solo vs AI)</h3>
         <p>Instant offline 3v3. Control one skater and swap on the fly.</p>
         <div class="button-row">
           <button id="mode-hockey94-solo" class="primary">Drop the Puck</button>
         </div>
       </div>
-      <div class="menu-card mode-card">
+      <div class="menu-card mode-card mode-card-3v3">
         <h3>3v3 Arcade Hockey (Online Multiplayer)</h3>
         <p>Host or join a room code. Up to 6 humans, bots fill the rest.</p>
         <div class="button-row">
           <button id="mode-hockey94-online" class="primary">Host / Join</button>
         </div>
       </div>
-      <div class="menu-card mode-card">
+      <div class="menu-card mode-card mode-card-3v3">
         <h3>3v3 Arcade Hockey (Watch Mode)</h3>
         <p>Level 10 AI vs AI with full-length periods to study the flow.</p>
         <div class="button-row">
@@ -289,6 +289,8 @@ const showFranchiseMatch = (match) => {
     arenaName: homeTeam?.arena || null,
     difficulty,
     aiStyle: pickAiStyle(calcTeamRating(opponent)),
+    homeColors: homeTeam?.colors || null,
+    awayColors: awayTeam?.colors || null,
     homeSkaters: homeLineup.skaters,
     awaySkaters: awayLineup.skaters,
     homeGoalie: homeLineup.goalie,
@@ -321,6 +323,8 @@ const showFranchisePractice = (practiceConfig) => {
     arenaName: homeTeam?.arena || null,
     difficulty: Math.max(3, Math.min(7, difficulty)),
     aiStyle: "Balanced",
+    homeColors: homeTeam?.colors || null,
+    awayColors: opponent?.colors || null,
     homeSkaters: homeLineup.skaters,
     awaySkaters: awayLineup.skaters,
     homeGoalie: homeLineup.goalie,

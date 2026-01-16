@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { semanticSearch } from '@/lib/ai/embeddings';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type SearchResultType = 'show' | 'episode';
 
 export async function GET(req: NextRequest) {

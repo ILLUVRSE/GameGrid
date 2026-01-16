@@ -294,6 +294,48 @@ button[disabled] {
   margin-bottom: 10px;
 }
 
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-card__art {
+  position: relative;
+  height: 140px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background-color: #0b0f1b;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+
+.mode-card__art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 20, 0.15), rgba(8, 12, 20, 0.7));
+  pointer-events: none;
+}
+
+.mode-card__art--skaters {
+  background-image: url("assets/ChatGPT Image Jan 12, 2026, 08_46_54 PM.png");
+}
+
+.mode-card__art--goalies {
+  background-image: url("assets/ChatGPT Image Jan 12, 2026, 08_47_00 PM.png");
+}
+
+.mode-card__art--showcase {
+  background-image: url("assets/ChatGPT Image Jan 12, 2026, 08_46_54 PM.png"),
+    url("assets/ChatGPT Image Jan 12, 2026, 08_47_00 PM.png");
+  background-size: 62% auto, 62% auto;
+  background-position: left 10% center, right 10% center;
+  background-repeat: no-repeat;
+}
+
 .mode-card .button-row {
   margin-top: 16px;
 }
@@ -1355,6 +1397,18 @@ button[disabled] {
   justify-content: center;
 }
 
+.hockey94-setup {
+  display: flex;
+  justify-content: center;
+}
+
+.hockey94-setup-grid {
+  display: grid;
+  gap: 16px;
+  width: min(980px, 100%);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
 .connection-card {
   width: min(520px, 100%);
   background: linear-gradient(140deg, rgba(10, 14, 24, 0.9), rgba(14, 22, 40, 0.8));
@@ -1393,6 +1447,63 @@ button[disabled] {
 .setup-preview {
   font-size: 13px;
   color: var(--muted);
+}
+
+.jersey-card {
+  width: min(420px, 100%);
+}
+
+.jersey-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.jersey-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.jersey-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.jersey-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(8, 12, 20, 0.7);
+  color: var(--ink);
+  font-size: 11px;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.jersey-option:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.jersey-option.active {
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+
+.jersey-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--swatch);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
 }
 
 .join-row {

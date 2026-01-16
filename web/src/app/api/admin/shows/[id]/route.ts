@@ -4,6 +4,10 @@ import { deleteShow, updateShow } from '@/lib/db/show';
 import { prisma } from '@/lib/prisma';
 import { Prisma, Role } from '@prisma/client';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 function isAdmin(req: NextRequest) {
   const session = getSessionFromRequest(req);
   return session?.role === Role.ADMIN || session?.role === Role.EDITOR;

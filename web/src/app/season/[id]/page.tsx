@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { hasDatabase, prisma } from "@/lib/prisma";
 
 export default async function SeasonPage({
   params,
@@ -9,6 +9,24 @@ export default async function SeasonPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!hasDatabase) {
+    return (
+      <main className="min-h-screen bg-illuvrse-night px-6 py-20 text-illuvrse-snow">
+        <div className="mx-auto w-full max-w-3xl text-center">
+          <h1 className="text-3xl font-semibold">Database not configured</h1>
+          <p className="mt-3 text-sm text-illuvrse-muted">
+            Connect a database to view season details.
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-flex rounded-full border border-illuvrse-stroke px-6 py-3 text-sm font-semibold text-illuvrse-snow"
+          >
+            Back to ILLUVRSE
+          </Link>
+        </div>
+      </main>
+    );
+  }
   const season = await prisma.season.findUnique({
     where: { id },
     include: {
@@ -111,6 +129,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
+  if (!hasDatabase) {
+    return {
+      title: "ILLUVRSE",
+      description: "Connect a database to view season details.",
+    };
+  }
   const { id } = await params;
   const season = await prisma.season.findUnique({
     where: { id },

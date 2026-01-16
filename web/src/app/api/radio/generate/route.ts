@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createStation } from "@/lib/ai/radio";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type StationRequest = {
   theme?: string;
   limit?: number;
 };
 
-export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   let body: StationRequest;

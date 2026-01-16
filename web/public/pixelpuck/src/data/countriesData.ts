@@ -1,3 +1,102 @@
+const parseRgb = (color: string) => {
+  if (!color) return null;
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 3) {
+      const r = Number.parseInt(hex[0] + hex[0], 16);
+      const g = Number.parseInt(hex[1] + hex[1], 16);
+      const b = Number.parseInt(hex[2] + hex[2], 16);
+      return { r, g, b };
+    }
+    if (hex.length >= 6) {
+      const r = Number.parseInt(hex.slice(0, 2), 16);
+      const g = Number.parseInt(hex.slice(2, 4), 16);
+      const b = Number.parseInt(hex.slice(4, 6), 16);
+      return { r, g, b };
+    }
+  }
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (match) {
+    const parts = match[1].split(",").map((part) => Number.parseFloat(part.trim()));
+    if (parts.length >= 3) {
+      return { r: parts[0], g: parts[1], b: parts[2] };
+    }
+  }
+  return null;
+};
+
+const mixColor = (a: string, b: string, t: number) => {
+  const c1 = parseRgb(a);
+  const c2 = parseRgb(b);
+  if (!c1 || !c2) return a;
+  const clamp = (value: number) => Math.max(0, Math.min(255, value));
+  return `rgb(${clamp(c1.r + (c2.r - c1.r) * t)}, ${clamp(c1.g + (c2.g - c1.g) * t)}, ${clamp(
+    c1.b + (c2.b - c1.b) * t,
+  )})`;
+};
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (const ch of value) {
+    const code = ch.codePointAt(0) ?? 0;
+    hash = (hash * 31 + code) >>> 0;
+  }
+  return hash;
+};
+
+const hslToRgb = (h: number, s: number, l: number) => {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (hp >= 0 && hp < 1) {
+    r = c;
+    g = x;
+  } else if (hp < 2) {
+    r = x;
+    g = c;
+  } else if (hp < 3) {
+    g = c;
+    b = x;
+  } else if (hp < 4) {
+    g = x;
+    b = c;
+  } else if (hp < 5) {
+    r = x;
+    b = c;
+  } else if (hp <= 6) {
+    r = c;
+    b = x;
+  }
+  const m = l - c / 2;
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255),
+  };
+};
+
+const flagBaseColor = (flag: string) => {
+  if (!flag) return "#7aa2ff";
+  const hash = hashString(flag);
+  const hue = hash % 360;
+  const sat = 0.65 + ((hash >> 3) % 20) / 100;
+  const light = 0.45 + ((hash >> 5) % 15) / 100;
+  const { r, g, b } = hslToRgb(hue, sat, light);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const deriveTeamColors = (flag: string, accent: string) => {
+  const baseAccent = accent || "#7aa2ff";
+  const base = mixColor(flagBaseColor(flag), baseAccent, 0.5);
+  return {
+    primary: base,
+    secondary: mixColor(base, "#0b1224", 0.55),
+  };
+};
+
 const regionThemes = {
   Americas: {
     fill: "#0b101b",
@@ -29,9 +128,11 @@ const regionThemes = {
     accent: "rgba(90,220,200,0.5)",
     haze: "rgba(90, 220, 200, 0.16)",
   },
-};
+} as const;
 
-const themeFor = (region: string, accent: string) => ({
+type RegionName = keyof typeof regionThemes;
+
+const themeFor = (region: RegionName, accent: string) => ({
   table: {
     fill: regionThemes[region]?.fill ?? "#0c111e",
     line: regionThemes[region]?.line ?? "rgba(255,255,255,0.3)",
@@ -39,7 +140,7 @@ const themeFor = (region: string, accent: string) => ({
   },
 });
 
-export const REGIONS = ["Americas", "Europe", "Africa", "Asia", "Oceania"];
+export const REGIONS = ["Americas", "Europe", "Africa", "Asia", "Oceania"] as const;
 
 export const REGION_LABELS = {
   Americas: { x: 0.08, y: 0.06 },
@@ -71,6 +172,7 @@ export const FINAL_NODE = {
   arenaTwist: "None",
   arenaTheme: themeFor("Europe", "rgba(255,215,120,0.6)"),
   arenaBackground: "Arenas/USA.png",
+  teamColors: deriveTeamColors("🌍", "rgba(255,215,120,0.6)"),
   x: 0.5,
   y: 0.38,
   nextIds: [],
@@ -834,7 +936,10 @@ export const COUNTRIES = [
     y: 0.86,
     nextIds: [],
   },
-];
+].map((country) => ({
+  ...country,
+  teamColors: country.teamColors || deriveTeamColors(country.flag || "", country.arenaTheme?.table?.accent ?? "#7aa2ff"),
+}));
 
 export const CHAMPION_IDS = new Set(["usa", "brazil", "germany", "japan", "southkorea"]);
 

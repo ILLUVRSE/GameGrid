@@ -22,15 +22,28 @@ async function seedAdmin() {
 }
 
 async function seedContent() {
-  const show = await prisma.show.upsert({
-    where: { slug: 'illuvrse-origins' },
-    update: {},
-    create: {
-      slug: 'illuvrse-origins',
-      title: 'ILLUVRSE: Origins',
-      synopsis: 'Journey into uncharted realms and discover the first Illuvials.',
-    },
-  });
+  const showSlug = 'rizzle-riftruck-illuvrse-adventures';
+  const showTitle = "Rizzle & RiftRuck's ILLUVRSE Adventures";
+  const legacyShow = await prisma.show.findUnique({ where: { slug: 'illuvrse-origins' } });
+  const show = legacyShow
+    ? await prisma.show.update({
+        where: { id: legacyShow.id },
+        data: {
+          slug: showSlug,
+          title: showTitle,
+        },
+      })
+    : await prisma.show.upsert({
+        where: { slug: showSlug },
+        update: {
+          title: showTitle,
+        },
+        create: {
+          slug: showSlug,
+          title: showTitle,
+          synopsis: 'Journey into uncharted realms and discover the first Illuvials.',
+        },
+      });
 
   const season1 = await prisma.season.upsert({
     where: { showId_number: { showId: show.id, number: 1 } },
@@ -57,14 +70,14 @@ async function seedContent() {
   const asset = await prisma.videoAsset.upsert({
     where: { id: 'seed-asset-episode-1' },
     update: {
-      sourceUrl: 'https://cdn.illuvrse.com/videos/illuvrse-origins-s1e1.mp4',
+      sourceUrl: 'https://cdn.illuvrse.com/videos/rizzle-riftruck-illuvrse-adventures-s1e1.mp4',
       durationSec: 2580,
       format: 'mp4',
       size: 1024 * 1024 * 800,
     },
     create: {
       id: 'seed-asset-episode-1',
-      sourceUrl: 'https://cdn.illuvrse.com/videos/illuvrse-origins-s1e1.mp4',
+      sourceUrl: 'https://cdn.illuvrse.com/videos/rizzle-riftruck-illuvrse-adventures-s1e1.mp4',
       durationSec: 2580,
       format: 'mp4',
       size: 1024 * 1024 * 800,

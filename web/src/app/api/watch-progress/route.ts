@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 export async function GET(req: NextRequest) {
   const session = getSessionFromRequest(req);
   const episodeId = req.nextUrl.searchParams.get('episodeId');

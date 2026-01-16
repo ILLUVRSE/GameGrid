@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const MAX_PROMPT_CHARS = 6000;
 const MAX_TOKENS_CAP = 1200;
@@ -11,7 +15,6 @@ type NarrativeRequest = {
   temperature?: number;
 };
 
-export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;

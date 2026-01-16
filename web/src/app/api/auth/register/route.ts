@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/auth/password';
 import { createUser, getUserByEmail } from '@/lib/db/user';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

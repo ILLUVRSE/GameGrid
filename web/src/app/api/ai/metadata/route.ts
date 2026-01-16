@@ -7,6 +7,10 @@ import { runSafetyCheck } from "@/lib/ai/moderation";
 import { upsertEpisodeEmbedding, upsertShowEmbedding } from "@/lib/ai/embeddings";
 import { logAiUsage } from "@/lib/ai/cost";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type MetadataPayload = {
   type?: "show" | "episode";
   id?: string;
@@ -15,7 +19,6 @@ type MetadataPayload = {
 
 const METADATA_MODEL = process.env.OPENAI_MODEL_METADATA || "gpt-4.1";
 
-export const runtime = "nodejs";
 
 function isAdmin(req: NextRequest) {
   const session = getSessionFromRequest(req);

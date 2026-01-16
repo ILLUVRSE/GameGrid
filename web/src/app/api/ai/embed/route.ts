@@ -5,13 +5,16 @@ import { Role } from "@prisma/client";
 import { upsertEpisodeEmbedding, upsertShowEmbedding } from "@/lib/ai/embeddings";
 import { logAiUsage } from "@/lib/ai/cost";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type EmbedRequest = {
   type?: "show" | "episode" | "all";
   limit?: number;
   force?: boolean;
 };
 
-export const runtime = "nodejs";
 
 function isAdmin(req: NextRequest) {
   const session = getSessionFromRequest(req);

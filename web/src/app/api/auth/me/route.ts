@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionFromRequest } from '@/lib/auth/session'
 import { getUserById } from '@/lib/db/user'
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 export async function GET(req: NextRequest) {
   const session = getSessionFromRequest(req)
 

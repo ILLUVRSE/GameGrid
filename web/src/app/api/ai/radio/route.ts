@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createStation } from "@/lib/ai/radio";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type StationRequest = {
   theme?: string;
   limit?: number;
 };
 
-export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug");

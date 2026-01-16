@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { hasDatabase, prisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "ILLUVRSE | Streaming & Media",
@@ -8,15 +8,17 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const shows = await prisma.show.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 6,
-  });
+  const shows = hasDatabase
+    ? await prisma.show.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      })
+    : [];
 
   const featured = shows[0] ?? {
     id: "featured",
-    slug: "illuvrse-origins",
-    title: "ILLUVRSE: Origins",
+    slug: "rizzle-riftruck-illuvrse-adventures",
+    title: "Rizzle & RiftRuck's ILLUVRSE Adventures",
     synopsis: "Journey into the first chapter of the ILLUVRSE saga.",
   };
 
@@ -155,12 +157,10 @@ export default async function Home() {
             <p className="text-xs uppercase tracking-[0.3em] text-illuvrse-muted">
               Streaming pulse
             </p>
-            <h3 className="mt-3 text-lg font-semibold">Next premieres</h3>
-            <ul className="mt-4 space-y-3 text-sm text-illuvrse-muted">
-              <li>ILLUVRSE: Origins — Season 1 finale</li>
-              <li>Signal Drift — Episode drop in 48 hours</li>
-              <li>Neon Corridor — New arc reveal</li>
-            </ul>
+            <h3 className="mt-3 text-lg font-semibold">Next premiere</h3>
+            <p className="mt-4 text-sm text-illuvrse-muted">
+              Rizzle &amp; RiftRuck&apos;s ILLUVRSE Adventures — Season 1 finale
+            </p>
           </div>
         </div>
       </section>

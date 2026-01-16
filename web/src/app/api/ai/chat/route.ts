@@ -4,6 +4,10 @@ import { chatCompletion } from "@/lib/ai/openai";
 import { semanticSearch } from "@/lib/ai/embeddings";
 import { logAiUsage } from "@/lib/ai/cost";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 type ChatRequest = {
   prompt?: string;
   limit?: number;
@@ -11,7 +15,6 @@ type ChatRequest = {
 
 const CHAT_MODEL = process.env.OPENAI_MODEL_CHAT || "gpt-4.1";
 
-export const runtime = "nodejs";
 
 function safeJsonParse(text: string) {
   try {

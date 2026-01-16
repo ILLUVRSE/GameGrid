@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+
 export async function GET(request: NextRequest) {
   const seasonId = request.nextUrl.searchParams.get('seasonId');
   const episodes = await prisma.episode.findMany({

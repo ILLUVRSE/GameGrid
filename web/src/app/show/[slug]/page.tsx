@@ -2,8 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getShowBySlug } from "@/lib/db/show";
-import { prisma } from "@/lib/prisma";
+import { hasDatabase, prisma } from "@/lib/prisma";
 import WatchlistButton from "@/components/WatchlistButton";
+import RiftboundTrailer from "@/components/RiftboundTrailer";
 
 export default async function ShowPage({
   params,
@@ -11,6 +12,25 @@ export default async function ShowPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  if (!hasDatabase) {
+    return (
+      <main className="min-h-screen bg-illuvrse-night px-6 py-20 text-illuvrse-snow">
+        <div className="mx-auto w-full max-w-3xl text-center">
+          <h1 className="text-3xl font-semibold">Database not configured</h1>
+          <p className="mt-3 text-sm text-illuvrse-muted">
+            Connect a database to view show details.
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-flex rounded-full border border-illuvrse-stroke px-6 py-3 text-sm font-semibold text-illuvrse-snow"
+          >
+            Back to ILLUVRSE
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   const show = await getShowBySlug(slug);
 
   if (!show) {
@@ -70,6 +90,7 @@ export default async function ShowPage({
         b.seasonNumber - a.seasonNumber || b.episode.number - a.episode.number,
     )[0]?.episode;
   const nextEpisode = latestEpisode;
+  const isRiftbound = show.slug === "rizzle-riftruck-illuvrse-adventures";
 
   return (
     <main className="min-h-screen bg-illuvrse-night px-6 pb-20 pt-12 text-illuvrse-snow">
@@ -148,6 +169,12 @@ export default async function ShowPage({
           </div>
         </div>
       </section>
+
+      {isRiftbound && (
+        <section className="mx-auto mt-10 w-full max-w-6xl">
+          <RiftboundTrailer heroImageUrl={show.heroImageUrl ?? show.posterUrl} />
+        </section>
+      )}
 
       <section className="mx-auto mt-10 w-full max-w-6xl space-y-6">
         {show.seasons.length > 0 && (
@@ -301,6 +328,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  if (!hasDatabase) {
+    return {
+      title: "ILLUVRSE",
+      description: "Connect a database to view show details.",
+    };
+  }
   const { slug } = await params;
   const show = await getShowBySlug(slug);
 

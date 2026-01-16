@@ -5,7 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { transcodeToHls } from "@/lib/media/transcode";
 import { Role } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+
 
 function isAdmin(req: NextRequest) {
   const session = getSessionFromRequest(req);
