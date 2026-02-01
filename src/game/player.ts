@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { MATCH_CONSTANTS } from './physics';
-import type { CharacterData, MoveData, MoveKey } from './types';
+import type { CharacterData, MoveData, MoveHitbox, MoveKey } from './types';
 
 export interface AttackState {
   moveKey: MoveKey;
@@ -19,7 +19,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   stunFrames = 0;
   hitstopFrames = 0;
   activeAttack?: AttackState;
-  hitbox: Phaser.GameObjects.Rectangle;
+  hitboxes: Phaser.GameObjects.Rectangle[] = [];
+  activeHitboxes: MoveHitbox[] = [];
   hitboxActive = false;
   queuedVelocity?: Phaser.Math.Vector2;
   coyoteFrames = 0;
@@ -39,17 +40,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.setOrigin(0.5, 0.5);
     this.setScale(2);
-    this.setSize(data.width * 0.6, data.height * 0.8);
-    this.setOffset(data.width * 0.2, data.height * 0.2);
+    this.setSize(data.hurtbox.width, data.hurtbox.height);
+    this.setOffset(data.hurtbox.offsetX, data.hurtbox.offsetY);
     this.setCollideWorldBounds(false);
     this.setBounce(0);
     this.setDragX(0);
-    this.body.setMaxVelocity(Math.max(data.stats.speed, MATCH_CONSTANTS.dashSpeed), data.stats.jumpForce * 2.4);
+    this.body.setMaxVelocity(
+      Math.max(data.stats.speed, MATCH_CONSTANTS.dashSpeed),
+      data.stats.jump * 2.4
+    );
     this.body.setGravityY(data.stats.gravity);
-
-    this.hitbox = scene.add.rectangle(x, y, 20, 20, 0xff00ff, 0.3).setOrigin(0.5);
-    scene.physics.add.existing(this.hitbox, true);
-    this.hitbox.setVisible(false);
   }
 
   resetState(x: number, y: number) {
@@ -60,8 +60,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.stunFrames = 0;
     this.hitstopFrames = 0;
     this.activeAttack = undefined;
+    this.activeHitboxes = [];
     this.hitboxActive = false;
-    this.hitbox.setVisible(false);
+    this.setHitboxVisibility(false);
     this.coyoteFrames = 0;
     this.jumpBufferFrames = 0;
     this.hitCooldownFrames = 0;
@@ -84,35 +85,66 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.play(`${this.data.id}-${moveKey}`, true);
   }
 
+  cancelAttack(moveKey: MoveKey) {
+    this.activeAttack = undefined;
+    this.activeHitboxes = [];
+    this.hitboxActive = false;
+    this.setHitboxVisibility(false);
+    this.startAttack(moveKey);
+  }
+
   updateAttack() {
     if (!this.activeAttack) {
       return;
     }
     const { move } = this.activeAttack;
     this.activeAttack.frame += 1;
-    const totalFrames = Math.max(move.frames.length, move.active.end);
 
-    const isActive =
-      this.activeAttack.frame >= move.active.start && this.activeAttack.frame <= move.active.end;
+    const lastActiveFrame = Math.max(...move.activeFrames.map((window) => window.endFrame));
+    const totalFrames = lastActiveFrame + move.endLagFrames;
 
-    this.hitboxActive = isActive;
-    this.hitbox.setVisible(isActive);
+    const currentFrame = this.activeAttack.frame;
+    const activeWindow = move.activeFrames.find(
+      (window) => currentFrame >= window.startFrame && currentFrame <= window.endFrame
+    );
+
+    this.activeHitboxes = activeWindow?.hitboxes ?? [];
+    this.hitboxActive = Boolean(activeWindow);
+    this.setHitboxVisibility(this.hitboxActive);
 
     if (this.activeAttack.frame > totalFrames) {
       this.activeAttack = undefined;
+      this.activeHitboxes = [];
       this.hitboxActive = false;
-      this.hitbox.setVisible(false);
+      this.setHitboxVisibility(false);
     }
   }
 
-  updateHitbox() {
+  updateHitboxes() {
     if (!this.hitboxActive) {
       return;
     }
-    const offsetX = 28 * this.facing;
-    const offsetY = -6;
-    this.hitbox.setPosition(this.x + offsetX, this.y + offsetY);
-    (this.hitbox.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
+    this.ensureHitboxCount(this.activeHitboxes.length);
+    this.activeHitboxes.forEach((hitbox, index) => {
+      const rect = this.hitboxes[index];
+      const offsetX = hitbox.x * this.facing;
+      const offsetY = hitbox.y;
+      rect.setSize(hitbox.width, hitbox.height);
+      rect.setPosition(this.x + offsetX, this.y + offsetY);
+      rect.setVisible(true);
+      const body = rect.body as Phaser.Physics.Arcade.StaticBody | undefined;
+      body?.updateFromGameObject();
+    });
+    for (let i = this.activeHitboxes.length; i < this.hitboxes.length; i += 1) {
+      this.hitboxes[i].setVisible(false);
+    }
+  }
+
+  getActiveHitboxes() {
+    return this.activeHitboxes.map((hitbox, index) => ({
+      hitbox,
+      bounds: this.hitboxes[index]?.getBounds()
+    }));
   }
 
   applyStun(frames: number) {
@@ -125,5 +157,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   queueVelocity(x: number, y: number) {
     this.queuedVelocity = new Phaser.Math.Vector2(x, y);
+  }
+
+  override destroy(fromScene?: boolean) {
+    this.hitboxes.forEach((rect) => rect.destroy());
+    super.destroy(fromScene);
+  }
+
+  private ensureHitboxCount(count: number) {
+    for (let i = this.hitboxes.length; i < count; i += 1) {
+      const rect = this.scene
+        .add
+        .rectangle(this.x, this.y, 20, 20, 0xff00ff, 0.3)
+        .setOrigin(0.5);
+      this.scene.physics.add.existing(rect, true);
+      rect.setVisible(false);
+      this.hitboxes.push(rect);
+    }
+  }
+
+  private setHitboxVisibility(visible: boolean) {
+    this.hitboxes.forEach((rect) => rect.setVisible(visible));
   }
 }

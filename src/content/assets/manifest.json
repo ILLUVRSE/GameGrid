@@ -1,0 +1,64 @@
+{
+  "sprites": {
+    "sprite-volt": {
+      "path": "sprites/volt-sheet.png",
+      "type": "spriteSheet",
+      "frameWidth": 48,
+      "frameHeight": 48
+    },
+    "sprite-forge": {
+      "path": "sprites/forge-sheet.png",
+      "type": "spriteSheet",
+      "frameWidth": 48,
+      "frameHeight": 48
+    },
+    "sprite-nova": {
+      "path": "sprites/nova-sheet.png",
+      "type": "spriteSheet",
+      "frameWidth": 48,
+      "frameHeight": 48
+    },
+    "sprite-rizzle": {
+      "path": "sprites/rizzle-sheet.png",
+      "type": "spriteSheet",
+      "frameWidth": 48,
+      "frameHeight": 48
+    }
+  },
+  "ui": {
+    "ui-portrait-default": {
+      "path": "ui/portrait-default.svg",
+      "type": "image"
+    },
+    "ui-volt-portrait": {
+      "path": "ui/portrait-default.svg",
+      "type": "image"
+    },
+    "ui-forge-portrait": {
+      "path": "ui/portrait-default.svg",
+      "type": "image"
+    },
+    "ui-nova-portrait": {
+      "path": "ui/portrait-default.svg",
+      "type": "image"
+    },
+    "ui-rizzle-portrait": {
+      "path": "ui/portrait-default.svg",
+      "type": "image"
+    }
+  },
+  "sfx": {
+    "sfx-hit-light": {
+      "path": "sfx/hit-light.wav"
+    },
+    "sfx-hit-heavy": {
+      "path": "sfx/hit-heavy.wav"
+    }
+  },
+  "vfx": {
+    "vfx-hit-burst": {
+      "path": "vfx/hit-burst.png",
+      "type": "image"
+    }
+  }
+}
