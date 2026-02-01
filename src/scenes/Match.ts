@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { characterMap } from '../game/characters';
+import { characterRegistry, stageRegistry } from '../game/content';
 import { HitFx } from '../game/fx';
 import { onMatchEnd, onMatchStart, onPlayerKO } from '../game/hooks';
 import { InputManager } from '../game/inputManager';
@@ -10,14 +10,13 @@ import {
   GAME_WIDTH,
   HUD_CONFIG,
   MATCH_CONSTANTS,
-  PLATFORM_CONFIG,
-  WORLD_BOUNDS
+  PLATFORM_CONFIG
 } from '../game/physics';
 import type { MatchResult, MatchData } from '../game/hooks';
-import type { CharacterData, MoveData, PlayerSelection } from '../game/types';
+import type { CharacterData, MoveData, MoveHitbox, PlayerSelection, StageData } from '../game/types';
 import { MatchHud } from '../game/ui';
 
-const SPAWN_POINTS = [
+const DEFAULT_SPAWN_POINTS = [
   { x: 240, y: 200 },
   { x: 720, y: 200 },
   { x: 320, y: 140 },
@@ -33,6 +32,7 @@ export class MatchScene extends Phaser.Scene {
   private debugMode = false;
   private debugGraphics?: Phaser.GameObjects.Graphics;
   private fpsText?: Phaser.GameObjects.Text;
+  private stageData?: StageData;
 
   constructor() {
     super('Match');
@@ -43,15 +43,23 @@ export class MatchScene extends Phaser.Scene {
     this.inputManager = new InputManager(this);
     this.hitFx = new HitFx(this);
 
+    this.stageData = this.resolveStage();
+    const blastZones = this.stageData?.blastZones ?? {
+      left: -200,
+      right: 1160,
+      top: -300,
+      bottom: 900
+    };
+
     this.cameras.main.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.physics.world.setBounds(
-      WORLD_BOUNDS.left,
-      WORLD_BOUNDS.top,
-      WORLD_BOUNDS.right - WORLD_BOUNDS.left,
-      WORLD_BOUNDS.bottom - WORLD_BOUNDS.top
+      blastZones.left,
+      blastZones.top,
+      blastZones.right - blastZones.left,
+      blastZones.bottom - blastZones.top
     );
 
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0f1324);
+    this.createBackground();
 
     this.selections = (this.registry.get('selections') as PlayerSelection[]) ?? [];
     if (this.selections.length === 0) {
@@ -77,22 +85,56 @@ export class MatchScene extends Phaser.Scene {
     });
   }
 
+  private resolveStage() {
+    const stages = stageRegistry.getAllStages();
+    if (stages.length === 0) {
+      return undefined;
+    }
+    const stageId = this.registry.get('stageId') as string | undefined;
+    return stageRegistry.getStage(stageId ?? stages[0].id) ?? stages[0];
+  }
+
+  private createBackground() {
+    const layers = this.stageData?.backgroundLayers ?? [{ color: '#0f1324' }];
+    layers.forEach((layer, index) => {
+      const colorValue = Number.parseInt(layer.color.replace('#', ''), 16);
+      const rect = this.add.rectangle(
+        GAME_WIDTH / 2,
+        GAME_HEIGHT / 2,
+        GAME_WIDTH,
+        GAME_HEIGHT,
+        colorValue
+      );
+      rect.setDepth(-10 - index);
+    });
+  }
+
   private createPlatforms() {
-    const ground = this.add.rectangle(
-      GAME_WIDTH / 2,
-      GAME_HEIGHT - PLATFORM_CONFIG.groundHeight / 2,
-      GAME_WIDTH - 140,
-      PLATFORM_CONFIG.groundHeight,
-      0x1b2440
-    );
-    const leftLedge = this.add.rectangle(160, GAME_HEIGHT - 130, 160, 26, 0x1f2c4c);
-    const rightLedge = this.add.rectangle(GAME_WIDTH - 160, GAME_HEIGHT - 130, 160, 26, 0x1f2c4c);
-    const centerPlatform = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT - 220, 240, 20, 0x222f52);
+    const platforms = this.stageData?.platforms ?? [
+      {
+        type: 'solid',
+        x: GAME_WIDTH / 2,
+        y: GAME_HEIGHT - PLATFORM_CONFIG.groundHeight / 2,
+        w: GAME_WIDTH - 140,
+        h: PLATFORM_CONFIG.groundHeight,
+        color: '#1b2440'
+      }
+    ];
 
-    const staticBodies = this.physics.add.staticGroup([ground, leftLedge, rightLedge]);
+    const staticBodies = this.physics.add.staticGroup();
+    const oneWayPlatforms = this.physics.add.staticGroup();
+
+    platforms.forEach((platform) => {
+      const color = Number.parseInt((platform.color ?? '#1b2440').replace('#', ''), 16);
+      const rect = this.add.rectangle(platform.x, platform.y, platform.w, platform.h, color);
+      if (platform.type === 'oneWay') {
+        oneWayPlatforms.add(rect);
+      } else {
+        staticBodies.add(rect);
+      }
+    });
+
     staticBodies.refresh();
-
-    const oneWayPlatforms = this.physics.add.staticGroup([centerPlatform]);
     oneWayPlatforms.refresh();
 
     this.physics.add.collider(this.players, staticBodies);
@@ -109,9 +151,11 @@ export class MatchScene extends Phaser.Scene {
   }
 
   private createPlayers() {
+    const spawnPoints = this.stageData?.spawnPoints ?? DEFAULT_SPAWN_POINTS;
+    const fallbackCharacter = characterRegistry.getAllCharacters()[0];
     this.players = this.selections.map((selection, index) => {
-      const data = characterMap.get(selection.characterId) as CharacterData;
-      const spawn = SPAWN_POINTS[index] ?? SPAWN_POINTS[0];
+      const data = (characterRegistry.getCharacter(selection.characterId) ?? fallbackCharacter) as CharacterData;
+      const spawn = spawnPoints[index] ?? spawnPoints[0];
       const player = new Player(this, spawn.x, spawn.y, selection.playerId, data);
       player.setTint(selection.color);
       player.play(`${data.id}-idle`, true);
@@ -194,6 +238,11 @@ export class MatchScene extends Phaser.Scene {
       player.jumpBufferFrames = MATCH_CONSTANTS.jumpBufferFrames;
     }
 
+    const activeMove = player.activeAttack?.move;
+    if (player.activeAttack && activeMove?.cancel?.allowSpecialCancel && input.specialPressed) {
+      player.cancelAttack('special');
+    }
+
     if (player.stunFrames === 0 && !player.activeAttack) {
       const direction = (input.left ? -1 : 0) + (input.right ? 1 : 0);
       const accel = grounded ? MATCH_CONSTANTS.groundAccel : MATCH_CONSTANTS.airAccel;
@@ -210,7 +259,7 @@ export class MatchScene extends Phaser.Scene {
       if (player.jumpBufferFrames > 0) {
         const canJump = grounded || player.coyoteFrames > 0 || player.jumpCount > 0;
         if (canJump) {
-          body.setVelocityY(-player.data.stats.jumpForce);
+          body.setVelocityY(-player.data.stats.jump);
           player.jumpCount = Math.max(0, player.jumpCount - 1);
           player.coyoteFrames = 0;
           player.jumpBufferFrames = 0;
@@ -243,7 +292,7 @@ export class MatchScene extends Phaser.Scene {
     }
 
     player.updateAttack();
-    player.updateHitbox();
+    player.updateHitboxes();
 
     const speed = Math.abs(body.velocity.x);
     if (!grounded) {
@@ -265,6 +314,7 @@ export class MatchScene extends Phaser.Scene {
         return;
       }
 
+      const hitboxes = attacker.getActiveHitboxes();
       this.players.forEach((defender) => {
         if (attacker === defender) {
           return;
@@ -276,35 +326,39 @@ export class MatchScene extends Phaser.Scene {
           return;
         }
 
-        const hitboxBounds = attacker.hitbox.getBounds();
         const defenderBody = defender.body as Phaser.Physics.Arcade.Body;
         const defenderBounds = defenderBody.getBounds();
 
-        if (Phaser.Geom.Intersects.RectangleToRectangle(hitboxBounds, defenderBounds)) {
-          attacker.activeAttack?.hitTargets.add(defender.playerId);
-          this.resolveHit(attacker, defender, attacker.activeAttack.move);
-        }
+        hitboxes.forEach(({ hitbox, bounds }) => {
+          if (!bounds) {
+            return;
+          }
+          if (Phaser.Geom.Intersects.RectangleToRectangle(bounds, defenderBounds)) {
+            attacker.activeAttack?.hitTargets.add(defender.playerId);
+            this.resolveHit(attacker, defender, hitbox, attacker.activeAttack.move);
+          }
+        });
       });
     });
   }
 
-  private resolveHit(attacker: Player, defender: Player, move: MoveData) {
-    defender.damage = Math.min(defender.damage + move.damage, MATCH_CONSTANTS.maxDamage);
+  private resolveHit(attacker: Player, defender: Player, hitbox: MoveHitbox, move: MoveData) {
+    defender.damage = Math.min(defender.damage + hitbox.damage, MATCH_CONSTANTS.maxDamage);
 
     const angleVariance = Phaser.Math.Between(
       -KNOCKBACK_CONFIG.randomAngleVariance,
       KNOCKBACK_CONFIG.randomAngleVariance
     );
 
-    const direction = getKnockbackDirection(move.angle, attacker.facing, angleVariance);
+    const direction = getKnockbackDirection(hitbox.angle, attacker.facing, angleVariance);
     const magnitude = Math.max(
-      calculateKnockbackMagnitude(move, defender.damage, defender.data.stats.weight),
+      calculateKnockbackMagnitude(hitbox, defender.damage, defender.data.stats.weight),
       KNOCKBACK_CONFIG.minLaunchSpeed
     );
     const velocity = direction.scale(magnitude);
 
     defender.queueVelocity(velocity.x, velocity.y);
-    defender.applyStun(move.stun);
+    defender.applyStun(hitbox.stun);
     defender.hitCooldownFrames = KNOCKBACK_CONFIG.hitCooldownFrames;
     defender.knockbackFrames = KNOCKBACK_CONFIG.knockbackGravityFrames;
     (defender.body as Phaser.Physics.Arcade.Body).setGravityY(
@@ -312,7 +366,7 @@ export class MatchScene extends Phaser.Scene {
     );
 
     const hitstop = Phaser.Math.Clamp(
-      MATCH_CONSTANTS.hitstopFrames + Math.floor(move.damage * MATCH_CONSTANTS.hitstopPerDamage),
+      move.onHit.hitstopFrames,
       MATCH_CONSTANTS.hitstopFrames,
       MATCH_CONSTANTS.hitstopMax
     );
@@ -321,10 +375,7 @@ export class MatchScene extends Phaser.Scene {
     defender.applyHitstop(hitstop);
 
     const shakeDirection = direction.clone().normalize();
-    const shakeIntensity = Math.min(
-      KNOCKBACK_CONFIG.shakeIntensity * (magnitude / KNOCKBACK_CONFIG.heavyHitSpeed),
-      KNOCKBACK_CONFIG.shakeIntensity * 1.6
-    );
+    const shakeIntensity = move.onHit.shakeIntensity || KNOCKBACK_CONFIG.shakeIntensity;
     this.cameras.main.shake(KNOCKBACK_CONFIG.shakeDuration, {
       x: Math.abs(shakeDirection.x) * shakeIntensity,
       y: Math.abs(shakeDirection.y) * shakeIntensity
@@ -338,14 +389,34 @@ export class MatchScene extends Phaser.Scene {
     }
 
     this.hitFx.flash(defender, defender.tintTopLeft);
-    this.hitFx.burst(defender.x, defender.y - 10, attacker.tintTopLeft);
+    this.triggerHitParticles(move.onHit.particleKey, defender.x, defender.y - 10, attacker.tintTopLeft);
 
     defender.play(`${defender.data.id}-hit`, true);
   }
 
+  private triggerHitParticles(particleKey: string, x: number, y: number, tint: number) {
+    if (particleKey === 'vfx-hit-burst') {
+      this.hitFx.burst(x, y, tint);
+      return;
+    }
+    this.hitFx.burst(x, y, tint);
+  }
+
   private checkKOs() {
+    const blastZones = this.stageData?.blastZones ?? {
+      left: -200,
+      right: 1160,
+      top: -300,
+      bottom: 900
+    };
+
     this.players.forEach((player, index) => {
-      if (player.y > WORLD_BOUNDS.bottom || player.x < WORLD_BOUNDS.left || player.x > WORLD_BOUNDS.right) {
+      if (
+        player.y > blastZones.bottom ||
+        player.y < blastZones.top ||
+        player.x < blastZones.left ||
+        player.x > blastZones.right
+      ) {
         player.stocks -= 1;
         onPlayerKO(player.playerId);
         this.hud.updateStocks(index, player.stocks);
@@ -354,51 +425,36 @@ export class MatchScene extends Phaser.Scene {
           player.setVisible(false);
           player.disableBody(true, true);
         } else {
-          const spawn = SPAWN_POINTS[index] ?? SPAWN_POINTS[0];
+          const spawnPoints = this.stageData?.spawnPoints ?? DEFAULT_SPAWN_POINTS;
+          const spawn = spawnPoints[index] ?? spawnPoints[0];
           player.resetState(spawn.x, spawn.y);
         }
       }
     });
 
-    const remaining = this.players.filter((player) => player.stocks > 0);
-    if (remaining.length <= 1) {
-      const results = this.players
+    const remainingPlayers = this.players.filter((player) => player.stocks > 0);
+    if (remainingPlayers.length <= 1) {
+      const results: MatchResult[] = this.players
         .map((player) => ({
           playerId: player.playerId,
-          stocks: player.stocks,
-          damage: player.damage
+          placement: player.stocks > 0 ? 1 : 2
         }))
-        .sort((a, b) => b.stocks - a.stocks)
-        .map((player, index) => ({
-          ...player,
-          placement: index + 1
-        }));
-
-      onMatchEnd(results as MatchResult[]);
+        .sort((a, b) => a.placement - b.placement);
       this.registry.set('results', results);
+      onMatchEnd({ winnerId: remainingPlayers[0]?.playerId ?? null } as MatchData);
       this.scene.start('Results');
     }
   }
 
   private updateDebug() {
-    if (!this.debugMode || !this.debugGraphics || !this.fpsText) {
+    if (!this.debugMode || !this.debugGraphics) {
       return;
     }
-
     this.debugGraphics.clear();
-    this.debugGraphics.lineStyle(1, 0x00ffcc, 0.8);
-
-    this.players.forEach((player) => {
-      const body = player.body as Phaser.Physics.Arcade.Body;
-      this.debugGraphics.strokeRect(body.x, body.y, body.width, body.height);
-
-      if (player.hitboxActive) {
-        const hitbox = player.hitbox.getBounds();
-        this.debugGraphics.lineStyle(1, 0xff00ff, 0.9);
-        this.debugGraphics.strokeRect(hitbox.x, hitbox.y, hitbox.width, hitbox.height);
-      }
-    });
-
-    this.fpsText.setText(`FPS: ${Math.floor(this.game.loop.actualFps)}`);
+    this.physics.world.drawDebug = this.debugMode;
+    this.physics.world.drawDebug(this.debugGraphics);
+    if (this.fpsText) {
+      this.fpsText.setText(`FPS ${Math.round(this.game.loop.actualFps)}`);
+    }
   }
 }

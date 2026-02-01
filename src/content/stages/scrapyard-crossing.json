@@ -1,0 +1,21 @@
+{
+  "id": "scrapyard-crossing",
+  "displayName": "Scrapyard Crossing",
+  "backgroundLayers": [
+    { "color": "#10121d" },
+    { "color": "#232a3f", "scrollFactor": 0.25 }
+  ],
+  "blastZones": { "top": -320, "bottom": 920, "left": -220, "right": 1180 },
+  "spawnPoints": [
+    { "x": 260, "y": 210 },
+    { "x": 700, "y": 210 },
+    { "x": 400, "y": 150 },
+    { "x": 560, "y": 150 }
+  ],
+  "platforms": [
+    { "type": "solid", "x": 480, "y": 512, "w": 760, "h": 60, "color": "#1a243b" },
+    { "type": "oneWay", "x": 330, "y": 360, "w": 180, "h": 20, "color": "#273152" },
+    { "type": "oneWay", "x": 630, "y": 360, "w": 180, "h": 20, "color": "#273152" }
+  ],
+  "hazards": []
+}

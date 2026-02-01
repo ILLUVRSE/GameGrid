@@ -1,0 +1,22 @@
+{
+  "id": "neon-rooftop",
+  "displayName": "Neon Rooftop",
+  "backgroundLayers": [
+    { "color": "#0f1324" },
+    { "color": "#182042", "scrollFactor": 0.2 }
+  ],
+  "blastZones": { "top": -300, "bottom": 900, "left": -200, "right": 1160 },
+  "spawnPoints": [
+    { "x": 240, "y": 200 },
+    { "x": 720, "y": 200 },
+    { "x": 320, "y": 140 },
+    { "x": 640, "y": 140 }
+  ],
+  "platforms": [
+    { "type": "solid", "x": 480, "y": 510, "w": 820, "h": 60, "color": "#1b2440" },
+    { "type": "solid", "x": 160, "y": 410, "w": 160, "h": 26, "color": "#1f2c4c" },
+    { "type": "solid", "x": 800, "y": 410, "w": 160, "h": 26, "color": "#1f2c4c" },
+    { "type": "oneWay", "x": 480, "y": 320, "w": 240, "h": 20, "color": "#222f52" }
+  ],
+  "hazards": []
+}

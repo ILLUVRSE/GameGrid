@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { MoveData } from './types';
+import type { MoveHitbox } from './types';
 
 export const KNOCKBACK_CONFIG = {
   // Knockback scaling (0% -> base, 50% -> base * (1 + 0.5 * kbScaling), 150% -> base * (1 + 1.5 * kbScaling))
@@ -25,11 +25,11 @@ export const getKnockbackDirection = (angle: number, facing: number, variance: n
 };
 
 export const calculateKnockbackMagnitude = (
-  move: MoveData,
+  hitbox: MoveHitbox,
   damage: number,
   weight: number
 ) => {
-  const damageScale = 1 + (damage / 100) * move.kbScaling;
+  const damageScale = 1 + (damage / 100) * hitbox.kbScaling;
   const weightScale = 100 / (weight + KNOCKBACK_CONFIG.weightOffset);
-  return move.baseKnockback * damageScale * weightScale * KNOCKBACK_CONFIG.baseMultiplier;
+  return hitbox.baseKnockback * damageScale * weightScale * KNOCKBACK_CONFIG.baseMultiplier;
 };

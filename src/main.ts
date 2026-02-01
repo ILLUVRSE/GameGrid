@@ -3,6 +3,7 @@ import { BootScene } from './scenes/Boot';
 import { PreloadScene } from './scenes/Preload';
 import { MenuScene } from './scenes/Menu';
 import { CharacterSelectScene } from './scenes/CharacterSelect';
+import { StageSelectScene } from './scenes/StageSelect';
 import { MatchScene } from './scenes/Match';
 import { ResultsScene } from './scenes/Results';
 import { GAME_HEIGHT, GAME_WIDTH } from './game/physics';
@@ -20,7 +21,15 @@ const config: Phaser.Types.Core.GameConfig = {
     }
   },
   pixelArt: true,
-  scene: [BootScene, PreloadScene, MenuScene, CharacterSelectScene, MatchScene, ResultsScene]
+  scene: [
+    BootScene,
+    PreloadScene,
+    MenuScene,
+    CharacterSelectScene,
+    StageSelectScene,
+    MatchScene,
+    ResultsScene
+  ]
 };
 
 new Phaser.Game(config);
