@@ -64,15 +64,23 @@ export class MenuScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
-      keyboard.on('keydown-D', () => {
+      const toggleDebug = () => {
         this.debugMode = !this.debugMode;
         this.registry.set('debugMode', this.debugMode);
         this.debugText?.setText(`Debug: ${this.debugMode ? 'ON' : 'OFF'} (Press D to toggle)`);
-      });
+      };
 
-      keyboard.on('keydown-ENTER', () => {
+      const startMatch = () => {
         this.registry.set('debugMode', this.debugMode);
         this.scene.start('CharacterSelect');
+      };
+
+      keyboard.on('keydown-D', toggleDebug);
+      keyboard.on('keydown-ENTER', startMatch);
+
+      this.events.once('shutdown', () => {
+        keyboard.off('keydown-D', toggleDebug);
+        keyboard.off('keydown-ENTER', startMatch);
       });
     }
   }

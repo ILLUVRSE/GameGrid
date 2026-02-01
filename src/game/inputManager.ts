@@ -138,4 +138,9 @@ export class InputManager {
       dashPressed: pad.justPressed(4)
     };
   }
+
+  destroy() {
+    this.mappings = {};
+    this.scene.input.keyboard?.removeAllKeys(true);
+  }
 }

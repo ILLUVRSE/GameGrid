@@ -10,18 +10,21 @@ export const WORLD_BOUNDS = {
 export const MATCH_CONSTANTS = {
   maxDamage: 300,
   hitstopFrames: 5,
+  hitstopPerDamage: 0.15,
+  hitstopMax: 12,
   screenShake: 120,
-  fastFallSpeed: 520,
-  airControl: 0.65,
-  accel: 1800,
-  friction: 0.82,
+  // Movement feel tuning (frames at 60fps, acceleration is px/s^2).
+  coyoteFrames: 8,
+  jumpBufferFrames: 8,
+  fastFallSpeed: 640,
+  groundAccel: 2000,
+  airAccel: 1200,
+  groundDecel: 2200,
+  airDecel: 1400,
+  dashSpeed: 520,
+  dashTrailBurst: 4,
+  landingDustMinSpeed: 260,
   jumpCount: 2
-};
-
-export const KNOCKBACK_CONSTANTS = {
-  baseMultiplier: 1,
-  weightOffset: 40,
-  randomAngleVariance: 6
 };
 
 export const PLATFORM_CONFIG = {
