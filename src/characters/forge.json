@@ -1,0 +1,47 @@
+{
+  "id": "forge",
+  "displayName": "Forge",
+  "spriteSheet": "forge",
+  "width": 48,
+  "height": 48,
+  "pivot": { "x": 24, "y": 40 },
+  "stats": { "speed": 185, "jumpForce": 390, "weight": 110, "gravity": 1250 },
+  "moves": {
+    "neutral": {
+      "frames": [0, 1, 2, 3],
+      "active": { "start": 2, "end": 3 },
+      "damage": 8,
+      "baseKnockback": 130,
+      "kbScaling": 0.95,
+      "angle": 10,
+      "stun": 9
+    },
+    "up": {
+      "frames": [4, 5, 6],
+      "active": { "start": 1, "end": 2 },
+      "damage": 9,
+      "baseKnockback": 155,
+      "kbScaling": 1.1,
+      "angle": 85,
+      "stun": 11
+    },
+    "down": {
+      "frames": [2, 3, 4],
+      "active": { "start": 1, "end": 2 },
+      "damage": 7,
+      "baseKnockback": 140,
+      "kbScaling": 0.9,
+      "angle": -25,
+      "stun": 8
+    },
+    "special": {
+      "frames": [6, 7],
+      "active": { "start": 1, "end": 1 },
+      "damage": 11,
+      "baseKnockback": 200,
+      "kbScaling": 1.25,
+      "angle": 20,
+      "stun": 13
+    }
+  }
+}
