@@ -81,6 +81,10 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.updateSlotDisplays();
+
+    this.events.once('shutdown', () => {
+      this.inputManager?.destroy();
+    });
   }
 
   update() {

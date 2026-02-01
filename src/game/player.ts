@@ -22,6 +22,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   hitbox: Phaser.GameObjects.Rectangle;
   hitboxActive = false;
   queuedVelocity?: Phaser.Math.Vector2;
+  coyoteFrames = 0;
+  jumpBufferFrames = 0;
+  hitCooldownFrames = 0;
+  knockbackFrames = 0;
+  wasGrounded = false;
+  lastFallSpeed = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, playerId: number, data: CharacterData) {
     super(scene, x, y, data.spriteSheet, 0);
@@ -38,7 +44,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(false);
     this.setBounce(0);
     this.setDragX(0);
-    this.body.setMaxVelocity(600, 900);
+    this.body.setMaxVelocity(Math.max(data.stats.speed, MATCH_CONSTANTS.dashSpeed), data.stats.jumpForce * 2.4);
     this.body.setGravityY(data.stats.gravity);
 
     this.hitbox = scene.add.rectangle(x, y, 20, 20, 0xff00ff, 0.3).setOrigin(0.5);
@@ -56,6 +62,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.activeAttack = undefined;
     this.hitboxActive = false;
     this.hitbox.setVisible(false);
+    this.coyoteFrames = 0;
+    this.jumpBufferFrames = 0;
+    this.hitCooldownFrames = 0;
+    this.knockbackFrames = 0;
+    this.wasGrounded = false;
+    this.lastFallSpeed = 0;
   }
 
   startAttack(moveKey: MoveKey) {
@@ -78,6 +90,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
     const { move } = this.activeAttack;
     this.activeAttack.frame += 1;
+    const totalFrames = Math.max(move.frames.length, move.active.end);
 
     const isActive =
       this.activeAttack.frame >= move.active.start && this.activeAttack.frame <= move.active.end;
@@ -85,7 +98,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.hitboxActive = isActive;
     this.hitbox.setVisible(isActive);
 
-    if (this.activeAttack.frame > move.frames.length + 6) {
+    if (this.activeAttack.frame > totalFrames) {
       this.activeAttack = undefined;
       this.hitboxActive = false;
       this.hitbox.setVisible(false);

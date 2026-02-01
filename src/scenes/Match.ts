@@ -4,11 +4,11 @@ import { HitFx } from '../game/fx';
 import { onMatchEnd, onMatchStart, onPlayerKO } from '../game/hooks';
 import { InputManager } from '../game/inputManager';
 import { Player } from '../game/player';
+import { calculateKnockbackMagnitude, getKnockbackDirection, KNOCKBACK_CONFIG } from '../game/knockback';
 import {
   GAME_HEIGHT,
   GAME_WIDTH,
   HUD_CONFIG,
-  KNOCKBACK_CONSTANTS,
   MATCH_CONSTANTS,
   PLATFORM_CONFIG,
   WORLD_BOUNDS
@@ -67,6 +67,14 @@ export class MatchScene extends Phaser.Scene {
     this.createDebugTools();
 
     onMatchStart({ playerIds: this.selections.map((s) => s.playerId) } as MatchData);
+
+    this.events.once('shutdown', () => {
+      this.inputManager?.destroy();
+      this.hitFx?.destroy();
+      this.players.forEach((player) => player.destroy());
+      this.debugGraphics?.destroy();
+      this.fpsText?.destroy();
+    });
   }
 
   private createPlatforms() {
@@ -122,9 +130,9 @@ export class MatchScene extends Phaser.Scene {
     });
   }
 
-  update() {
+  update(_time: number, delta: number) {
     this.players.forEach((player, index) => {
-      this.updatePlayer(player, index);
+      this.updatePlayer(player, index, delta);
     });
 
     this.handleHits();
@@ -132,8 +140,9 @@ export class MatchScene extends Phaser.Scene {
     this.updateDebug();
   }
 
-  private updatePlayer(player: Player, index: number) {
+  private updatePlayer(player: Player, index: number, delta: number) {
     const body = player.body as Phaser.Physics.Arcade.Body;
+    const dt = delta / 1000;
 
     if (player.hitstopFrames > 0) {
       player.hitstopFrames -= 1;
@@ -145,37 +154,82 @@ export class MatchScene extends Phaser.Scene {
       return;
     }
 
-    if (body.blocked.down || body.touching.down) {
-      player.jumpCount = MATCH_CONSTANTS.jumpCount;
+    if (player.hitCooldownFrames > 0) {
+      player.hitCooldownFrames -= 1;
     }
+
+    if (player.knockbackFrames > 0) {
+      player.knockbackFrames -= 1;
+      if (player.knockbackFrames === 0) {
+        body.setGravityY(player.data.stats.gravity);
+      }
+    }
+
+    const grounded = body.blocked.down || body.touching.down;
+    if (grounded) {
+      if (!player.wasGrounded && player.lastFallSpeed > MATCH_CONSTANTS.landingDustMinSpeed) {
+        this.hitFx.landingDust(player.x, body.y + body.height, player.tintTopLeft);
+      }
+      player.jumpCount = MATCH_CONSTANTS.jumpCount;
+      player.coyoteFrames = MATCH_CONSTANTS.coyoteFrames;
+      player.lastFallSpeed = 0;
+    } else {
+      if (player.coyoteFrames > 0) {
+        player.coyoteFrames -= 1;
+      }
+      player.lastFallSpeed = Math.max(player.lastFallSpeed, body.velocity.y);
+    }
+    player.wasGrounded = grounded;
 
     if (player.stunFrames > 0) {
       player.stunFrames -= 1;
     }
 
+    if (player.jumpBufferFrames > 0) {
+      player.jumpBufferFrames -= 1;
+    }
+
     const input = this.inputManager.getState(player.playerId);
+    if (input.jumpPressed) {
+      player.jumpBufferFrames = MATCH_CONSTANTS.jumpBufferFrames;
+    }
 
     if (player.stunFrames === 0 && !player.activeAttack) {
       const direction = (input.left ? -1 : 0) + (input.right ? 1 : 0);
+      const accel = grounded ? MATCH_CONSTANTS.groundAccel : MATCH_CONSTANTS.airAccel;
+      const decel = grounded ? MATCH_CONSTANTS.groundDecel : MATCH_CONSTANTS.airDecel;
+      const targetSpeed = direction * player.data.stats.speed;
+      const rate = direction !== 0 ? accel : decel;
+      const newVelocityX = Phaser.Math.MoveTowards(body.velocity.x, targetSpeed, rate * dt);
+      body.setVelocityX(newVelocityX);
+
       if (direction !== 0) {
         player.facing = direction;
-        body.setAccelerationX(direction * MATCH_CONSTANTS.accel);
-      } else {
-        body.setAccelerationX(0);
-        body.setVelocityX(body.velocity.x * MATCH_CONSTANTS.friction);
       }
 
-      if (input.jumpPressed && player.jumpCount > 0) {
-        body.setVelocityY(-player.data.stats.jumpForce);
-        player.jumpCount -= 1;
+      if (player.jumpBufferFrames > 0) {
+        const canJump = grounded || player.coyoteFrames > 0 || player.jumpCount > 0;
+        if (canJump) {
+          body.setVelocityY(-player.data.stats.jumpForce);
+          player.jumpCount = Math.max(0, player.jumpCount - 1);
+          player.coyoteFrames = 0;
+          player.jumpBufferFrames = 0;
+        }
       }
 
-      if (!body.blocked.down && input.down && body.velocity.y < MATCH_CONSTANTS.fastFallSpeed) {
+      if (!grounded && input.down && body.velocity.y < MATCH_CONSTANTS.fastFallSpeed) {
         body.setVelocityY(MATCH_CONSTANTS.fastFallSpeed);
       }
 
-      if (input.dashPressed && body.blocked.down) {
-        body.setVelocityX(player.facing * 480);
+      if (input.dashPressed && grounded) {
+        body.setVelocityX(player.facing * MATCH_CONSTANTS.dashSpeed);
+        this.hitFx.dashTrail(
+          player.x - player.facing * 14,
+          player.y,
+          player.tintTopLeft,
+          player.facing,
+          MATCH_CONSTANTS.dashTrailBurst
+        );
       }
 
       if (input.attackPressed) {
@@ -192,7 +246,7 @@ export class MatchScene extends Phaser.Scene {
     player.updateHitbox();
 
     const speed = Math.abs(body.velocity.x);
-    if (!body.blocked.down) {
+    if (!grounded) {
       player.play(`${player.data.id}-${body.velocity.y < 0 ? 'jump' : 'fall'}`, true);
     } else if (player.activeAttack) {
       player.play(`${player.data.id}-${player.activeAttack.moveKey}`, true);
@@ -218,6 +272,9 @@ export class MatchScene extends Phaser.Scene {
         if (attacker.activeAttack?.hitTargets.has(defender.playerId)) {
           return;
         }
+        if (defender.hitCooldownFrames > 0) {
+          return;
+        }
 
         const hitboxBounds = attacker.hitbox.getBounds();
         const defenderBody = defender.body as Phaser.Physics.Arcade.Body;
@@ -235,30 +292,53 @@ export class MatchScene extends Phaser.Scene {
     defender.damage = Math.min(defender.damage + move.damage, MATCH_CONSTANTS.maxDamage);
 
     const angleVariance = Phaser.Math.Between(
-      -KNOCKBACK_CONSTANTS.randomAngleVariance,
-      KNOCKBACK_CONSTANTS.randomAngleVariance
+      -KNOCKBACK_CONFIG.randomAngleVariance,
+      KNOCKBACK_CONFIG.randomAngleVariance
     );
 
-    const angleDeg = (attacker.facing === 1 ? move.angle : 180 - move.angle) + angleVariance;
-    const rad = Phaser.Math.DegToRad(angleDeg);
-    const direction = new Phaser.Math.Vector2(Math.cos(rad), -Math.sin(rad));
-
-    const magnitude =
-      (move.baseKnockback + move.kbScaling * defender.damage) *
-      (100 / (defender.data.stats.weight + KNOCKBACK_CONSTANTS.weightOffset)) *
-      KNOCKBACK_CONSTANTS.baseMultiplier;
-
+    const direction = getKnockbackDirection(move.angle, attacker.facing, angleVariance);
+    const magnitude = Math.max(
+      calculateKnockbackMagnitude(move, defender.damage, defender.data.stats.weight),
+      KNOCKBACK_CONFIG.minLaunchSpeed
+    );
     const velocity = direction.scale(magnitude);
 
     defender.queueVelocity(velocity.x, velocity.y);
     defender.applyStun(move.stun);
+    defender.hitCooldownFrames = KNOCKBACK_CONFIG.hitCooldownFrames;
+    defender.knockbackFrames = KNOCKBACK_CONFIG.knockbackGravityFrames;
+    (defender.body as Phaser.Physics.Arcade.Body).setGravityY(
+      defender.data.stats.gravity * KNOCKBACK_CONFIG.gravityScale
+    );
 
-    attacker.applyHitstop(MATCH_CONSTANTS.hitstopFrames);
-    defender.applyHitstop(MATCH_CONSTANTS.hitstopFrames);
+    const hitstop = Phaser.Math.Clamp(
+      MATCH_CONSTANTS.hitstopFrames + Math.floor(move.damage * MATCH_CONSTANTS.hitstopPerDamage),
+      MATCH_CONSTANTS.hitstopFrames,
+      MATCH_CONSTANTS.hitstopMax
+    );
 
-    this.cameras.main.shake(120, 0.004);
-    this.hitFx.flash(defender);
-    this.hitFx.burst(defender.x, defender.y - 10, defender.tintTopLeft);
+    attacker.applyHitstop(hitstop);
+    defender.applyHitstop(hitstop);
+
+    const shakeDirection = direction.clone().normalize();
+    const shakeIntensity = Math.min(
+      KNOCKBACK_CONFIG.shakeIntensity * (magnitude / KNOCKBACK_CONFIG.heavyHitSpeed),
+      KNOCKBACK_CONFIG.shakeIntensity * 1.6
+    );
+    this.cameras.main.shake(KNOCKBACK_CONFIG.shakeDuration, {
+      x: Math.abs(shakeDirection.x) * shakeIntensity,
+      y: Math.abs(shakeDirection.y) * shakeIntensity
+    });
+
+    if (magnitude >= KNOCKBACK_CONFIG.heavyHitSpeed) {
+      this.cameras.main.zoomTo(1 + KNOCKBACK_CONFIG.cameraZoomAmount, KNOCKBACK_CONFIG.cameraZoomInMs);
+      this.time.delayedCall(KNOCKBACK_CONFIG.cameraZoomInMs, () => {
+        this.cameras.main.zoomTo(1, KNOCKBACK_CONFIG.cameraZoomOutMs);
+      });
+    }
+
+    this.hitFx.flash(defender, defender.tintTopLeft);
+    this.hitFx.burst(defender.x, defender.y - 10, attacker.tintTopLeft);
 
     defender.play(`${defender.data.id}-hit`, true);
   }
